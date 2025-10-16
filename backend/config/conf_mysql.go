@@ -5,11 +5,11 @@ import "strconv"
 type Mysql struct {
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
-	Config   string `yaml:"config"` 
+	Config   string `yaml:"config"`
 	DB       string `yaml:"db"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
-	LogLevel string `yaml:"log_Level"` 
+	LogLevel string `yaml:"log_Level"`
 }
 
 func (m Mysql) Dsn() string {

@@ -22,7 +22,7 @@ func CheckAllDevice() {
 	var allDevices []*models.Device
 	global.DB.Find(&allDevices)
 	for _, value := range allDevices {
-		
+
 		isCreated := utils.IsVMCreated(value.Name)
 		if isCreated && value.Status == "creating" {
 			myNewDevice := models.Device{
@@ -33,7 +33,7 @@ func CheckAllDevice() {
 			global.DB.Model(value).Updates(myNewDevice)
 		}
 
-		
+
 		vip := utils.GetVMIp(value.Name)
 		if vip != "" {
 			status := "running"

@@ -13,23 +13,23 @@
                 this.login(uni.getStorageSync('username'))
             }
 
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+            // // #ifdef APP-PLUS
+            // // 一键登录预登陆，可以显著提高登录速度
+            // uni.preLogin({
+            //     provider: 'univerify',
+            //     success: (res) => {
+            //         this.setUniverifyErrorMsg()
+            //         this.setHideUniverify(false);
+            //         console.log("preLogin success: ", res);
+            //     },
+            //     fail: (err) => {
+            //         this.setUniverifyErrorMsg(err.errMsg)
+            //         // 没有开通一键登录
+            //         this.setHideUniverify(true);
+            //         console.log("preLogin fail: ", err);
+            //     }
+            // })
+            // // #endif
         },
         onShow: function() {
             console.log('App Show');
@@ -44,10 +44,10 @@
 </script>
 
 <style>
-    
+    /* 头条小程序需要把 iconfont 样式放到组件外 */
     @import "components/m-icon/m-icon.css";
 
-    
+    /*每个页面公共css */
     page {
         min-height: 100%;
         display: flex;
@@ -60,7 +60,7 @@
         font-size: 14px;
     }
 
-    
+    /* #ifdef MP-BAIDU */
     page {
         width: 100%;
         height: 100%;
@@ -73,26 +73,26 @@
         display: flex;
     }
 
-    
+    /* 原生组件模式下需要注意组件外部样式 */
     custom-component {
         width: 100%;
         min-height: 100%;
         display: flex;
     }
 
-    
+    /* #endif */
 
-    
+    /* #ifdef MP-ALIPAY */
     page {
         min-height: 100vh;
     }
 
-    
+    /* #endif */
 
-    
+    /* 原生组件模式下需要注意组件外部样式 */
     m-input {
         width: 100%;
-        
+        /* min-height: 100%; */
         display: flex;
         flex: 1;
     }
@@ -139,7 +139,7 @@
         display: flex;
         flex-direction: row;
         position: relative;
-        
+        /* font-size: 18px; */
         height: 40px;
         line-height: 40px;
     }

@@ -35,6 +35,7 @@ export default {
     }
   },
   methods:{
+    //折叠菜单栏
     collapse(){
       this.isCollapse=!this.isCollapse;
       if (this.isCollapse){
@@ -45,6 +46,7 @@ export default {
         this.collapseBtnClass='el-icon-s-fold'
       }
     }
+
   }
 }
 </script>

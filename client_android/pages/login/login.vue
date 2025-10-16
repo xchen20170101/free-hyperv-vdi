@@ -55,10 +55,6 @@
             this.rememberPassword = rememberPassword;
         },
         methods: {
-            
-            
-            
-            
             bindLogin() {
                 console.log(this.rememberPassword)
                 uni.setStorageSync("username", this.form.username)
@@ -66,7 +62,6 @@
                     uni.setStorageSync("password", this.form.password)
                 }
 
-                
                 var serverIp = uni.getStorageSync("serverIp")
                 if (serverIp == "") {
                     uni.showToast({
@@ -75,14 +70,12 @@
                         position: 'bottom'
                     });
                 }
-                
-                var targetUrl = 'http:
-                
+                var targetUrl = 'http://' + serverIp + ':8090/api/cloud/v1/login'
                 uni.request({
                     url: targetUrl,
                     method: 'POST',
                     header: {
-                        'content-type': 'application/x-www-form-urlencoded' 
+                        'content-type': 'application/x-www-form-urlencoded' // 设置请求头为表单形式
                     },
                     data: {
                         username: this.form.username,
@@ -90,33 +83,14 @@
                     },
                     success: function(res) {
                         console.log('POST 请求成功', res)
-                        if (res.data.code == 0) {
-                            let cookie = 'accessToken=' + res.data.data.value + ';userId=' + res.data.data
-                                .user_id
-                            uni.setStorageSync("cookie", cookie)
-                            uni.navigateTo({
-                                url: "/pages/device/device"
-                            })
-                        } else {
-                            if (res.data.msg == "User.PasswordIsWrong") {
-                                uni.showToast({
-                                    title: '用户名或密码错误！',
-                                    icon: 'none',
-                                    position: 'bottom'
-                                });
-                            } else if (res.data.msg == "User.Disable") {
-                                uni.showToast({
-                                    title: '用户已禁用，请联系管理员启用后再登录！',
-                                    icon: 'none',
-                                    position: 'bottom'
-                                })
-                            }
-                        }
-                        
+                        // 移除了授权检查，直接跳转到设备页面
+                        uni.navigateTo({
+                            url: "/pages/device/device"
+                        })
                     },
                     fail: function(err) {
                         console.error('POST 请求失败', err);
-                        
+                        // 处理请求失败的情况
                         uni.showToast({
                             title: '网络连接错误！',
                             icon: 'none',
@@ -135,15 +109,10 @@
                     url: "/pages/password/password"
                 })
             },
-            
-            
-            
             onload(options) {
                 const serverIp = uni.getStorageSync("serverIp")
-                
             },
             handleSwitchChange(e) {
-                
                 uni.setStorageSync('rememberPassword', e.detail.value);
             }
         },
@@ -194,66 +163,5 @@
         top: 0;
         left: 0;
         width: 100%;
-    }
-
-    .oauth-image {
-        position: relative;
-        width: 50px;
-        height: 50px;
-        border: 1px solid #dddddd;
-        border-radius: 50px;
-        background-color: #ffffff;
-    }
-
-    .oauth-image image {
-        width: 30px;
-        height: 30px;
-        margin: 10px;
-    }
-
-    .oauth-image button {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-    }
-
-    .captcha-view {
-        line-height: 0;
-        justify-content: center;
-        align-items: center;
-        display: flex;
-        position: relative;
-        background-color: #f3f3f3;
-    }
-
-    .btn-row {
-        display: flex;
-        justify-content: space-between;
-        
-        
-    }
-
-    
-    .btn-row button {
-        
-        margin: 5px;
-        
-    }
-
-    .larger-btn {
-        padding: 5px 40px;
-        
-        font-size: 16px;
-        
-        
-    }
-
-    .reset-password {
-        flex-grow: 1;
-        text-align: right;
-        color: blue;
     }
 </style>

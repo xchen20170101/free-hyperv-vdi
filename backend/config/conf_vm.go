@@ -48,12 +48,12 @@ func (vmConfig VMConfig) DeleteTemplateMap(key string) {
 }
 
 func (vmConfig VMConfig) GetTemplateFileName(template string) string {
-	
+
 	return VmMap[template]
 }
 
 func (vmConfig VMConfig) InitTemplate() {
-	
+
 	files, err := ioutil.ReadDir(vmConfig.Template)
 	if err != nil {
 		return
@@ -63,7 +63,7 @@ func (vmConfig VMConfig) InitTemplate() {
 			dir := fmt.Sprintf("%s\\%s\\Virtual Machines", vmConfig.Template, file.Name())
 			value := vmConfig.GetTemplateFile(dir)
 			VmMap[file.Name()] = value
-			
+
 		}
 	}
 }

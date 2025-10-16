@@ -16,31 +16,45 @@
 
 <script>
 	import popup from './popup.js'
-	
+	// #ifdef H5
 	import keypress from './keypress.js'
-	
-	
+	// #endif
+	/**
+	 * PopUp 弹出层
+	 * @description 弹出层组件，为了解决遮罩弹层的问题
+	 * @tutorial https://ext.dcloud.net.cn/plugin?id=329
+	 * @property {String} type = [top|center|bottom] 弹出方式
+	 * 	@value top 顶部弹出
+	 * 	@value center 中间弹出
+	 * 	@value bottom 底部弹出
+	 * 	@value message 消息提示
+	 * 	@value dialog 对话框
+	 * 	@value share 底部分享示例
+	 * @property {Boolean} animation = [ture|false] 是否开启动画
+	 * @property {Boolean} maskClick = [ture|false] 蒙版点击是否关闭弹窗
+	 * @event {Function} change 打开关闭弹窗触发，e={show: false}
+	 */
 
 	export default {
 		name: 'UniPopup',
 		components: {
-			
+			// #ifdef H5
 			keypress
-			
+			// #endif
 		},
 		props: {
-			
+			// 开启动画
 			animation: {
 				type: Boolean,
 				default: true
 			},
-			
-			
+			// 弹出层类型，可选值，top: 顶部弹出层；bottom：底部弹出层；center：全屏弹出层
+			// message: 消息提示 ; dialog : 对话框
 			type: {
 				type: String,
 				default: 'center'
 			},
-			
+			// maskClick
 			maskClick: {
 				type: Boolean,
 				default: true
@@ -53,7 +67,9 @@
 		},
 		mixins: [popup],
 		watch: {
-			
+			/**
+			 * 监听type类型
+			 */
 			type: {
 				handler: function(newVal) {
 					this[this.config[newVal]]()
@@ -66,7 +82,10 @@
 				},
 				immediate: true
 			},
-			
+			/**
+			 * 监听遮罩是否可点击
+			 * @param {Object} val
+			 */
 			maskClick: {
 				handler: function(val) {
 					this.mkclick = val
@@ -108,7 +127,7 @@
 		},
 		methods: {
 			clear(e) {
-				
+				// TODO nvue 取消冒泡
 				e.stopPropagation()
 			},
 			open() {
@@ -118,13 +137,13 @@
 						clearTimeout(this.timer)
 						this.timer = setTimeout(() => {
 							this.showTrans = true
-							
+							// fixed by mehaotian 兼容 app 端
 							this.$nextTick(() => {
 								resolve();
 							})
 						}, 50);
 					}).then(res => {
-						
+						// 自定义打开事件
 						clearTimeout(this.msgtimer)
 						this.msgtimer = setTimeout(() => {
 							this.customOpen && this.customOpen()
@@ -144,7 +163,7 @@
 						type: this.type
 					})
 					clearTimeout(this.timer)
-					
+					// 自定义关闭事件
 					this.customOpen && this.customClose()
 					this.timer = setTimeout(() => {
 						this.showPopup = false
@@ -155,7 +174,9 @@
 				if (!this.mkclick) return
 				this.close()
 			},
-			
+			/**
+			 * 顶部弹出样式处理
+			 */
 			top() {
 				this.popupstyle = this.isDesktop ? 'fixforpc-top' : 'top'
 				this.ani = ['slide-top']
@@ -165,7 +186,9 @@
 					'right': 0,
 				}
 			},
-			
+			/**
+			 * 底部弹出样式处理
+			 */
 			bottom() {
 				this.popupstyle = 'bottom'
 				this.ani = ['slide-bottom']
@@ -176,16 +199,18 @@
 					'bottom': 0
 				}
 			},
-			
+			/**
+			 * 中间弹出样式处理
+			 */
 			center() {
 				this.popupstyle = 'center'
 				this.ani = ['zoom-out', 'fade']
 				this.transClass = {
 					'position': 'fixed',
-					
+					/* #ifndef APP-NVUE */
 					'display': 'flex',
 					'flexDirection': 'column',
-					
+					/* #endif */
 					'bottom': 0,
 					'left': 0,
 					'right': 0,
@@ -200,15 +225,15 @@
 <style lang="scss" scoped>
 	.uni-popup {
 		position: fixed;
-		
+		/* #ifndef APP-NVUE */
 		z-index: 99;
-		
+		/* #endif */
 	}
 
 	.fixforpc-z-index {
-		
+		/* #ifndef APP-NVUE */
 		z-index: 999;
-		
+		/* #endif */
 	}
 
 	.uni-popup__mask {
@@ -239,19 +264,19 @@
 	}
 
 	.uni-popup__wrapper {
-		
+		/* #ifndef APP-NVUE */
 		display: block;
-		
+		/* #endif */
 		position: absolute;
 	}
 
 	.top {
-		
+		/* #ifdef H5 */
 		top: var(--window-top);
-		
-		
+		/* #endif */
+		/* #ifndef H5 */
 		top: 0;
-		
+		/* #endif */
 	}
 
 	.fixforpc-top {
@@ -263,19 +288,19 @@
 	}
 
 	.uni-popup__wrapper-box {
-		
+		/* #ifndef APP-NVUE */
 		display: block;
-		
+		/* #endif */
 		position: relative;
-		
-		
+		/* iphonex 等安全区设置，底部安全区适配 */
+		/* #ifndef APP-NVUE */
 		padding-bottom: constant(safe-area-inset-bottom);
 		padding-bottom: env(safe-area-inset-bottom);
-		
+		/* #endif */
 	}
 
 	.content-ani {
-		
+		// transition: transform 0.3s;
 		transition-property: transform, opacity;
 		transition-duration: 0.2s;
 	}

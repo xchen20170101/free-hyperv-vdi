@@ -30,16 +30,45 @@ func (DevicesApi) GetDevicesList(c *gin.Context) {
 		global.DB.Model(&models.Device{}).Where("name LIKE ?", keyword).Count(&totalNum)
 		global.DB.Limit(count).Offset(offset).Where("name LIKE ?", keyword).Find(&allDevices)
 	}
+
+	vmNames := make([]string, len(allDevices))
+	for i, device := range allDevices {
+		vmNames[i] = device.Name
+	}
+	vmStates := utils.GetAllVMStates(vmNames)
+	vmIps := utils.GetAllVMIps(vmNames)
+
 	data := make(map[string]interface{})
 	for _, value := range allDevices {
+
+		realTimeStatus := vmStates[value.Name]
+		
+		if realTimeStatus != "Unknown" && realTimeStatus != value.Status {
+			myNewDevice := models.Device{
+				Status: realTimeStatus,
+			}
+			global.DB.Model(value).Updates(myNewDevice)
+			global.Logger.Printf("Updated VM %s status from %s to %s\n", value.Name, value.Status, realTimeStatus)
+		}
+
+
+		currentStatus := realTimeStatus
+		if currentStatus == "Unknown" {
+			currentStatus = value.Status
+		}
+
+
+		realTimeIp := vmIps[value.Name]
+
+		currentIp := realTimeIp
 
 		temp := &res.GetDevicesListResponse{
 			ID:           value.ID,
 			Name:         value.Name,
 			UserName:     utils.GetUserInfoByDevice(value.ID),
 			TemplateInfo: utils.GetTemplateNameById(value.TemplateId),
-			VirtualIp:    value.Ip,
-			Status:       value.Status,
+			VirtualIp:    currentIp,
+			Status:       currentStatus,
 			CreatedTime:  utils.TransferTimeStamp(value.CreatedTime),
 			MemoryInfo:   value.MemoryInfo,
 			CpuInfo:      value.CpuInfo,
@@ -90,7 +119,12 @@ func (DevicesApi) GetUnbindDevicesList(c *gin.Context) {
 
 func (DevicesApi) UpdateVM(c *gin.Context) {
 	var device models.Device
+
+
+
 	id := c.Param("id")
+
+
 	result := global.DB.Where("id = ?", id).First(&device)
 	if result.Error != nil {
 		res.FailWithMsg("Device.NotExist", c)
@@ -111,9 +145,13 @@ func (DevicesApi) UpdateVM(c *gin.Context) {
 		return
 	}
 
+
 	flag := false
+
+
 	cpuInfo := form.CpuInfo
 	memoryInfo := form.MemoryInfo
+
 	if cpuInfo != device.CpuInfo {
 		err := utils.SetCpuInfo(device.Name, cpuInfo)
 		if err != nil {
@@ -145,6 +183,7 @@ func (DevicesApi) UpdateVM(c *gin.Context) {
 
 
 func (DevicesApi) DeleteVM(c *gin.Context) {
+
 	var device models.Device
 	var bind models.Bind
 	id := c.Param("id")
@@ -159,6 +198,7 @@ func (DevicesApi) DeleteVM(c *gin.Context) {
 	}
 	global.DB.Where("device_id = ?", id).First(&bind)
 	go utils.DeleteVMInForce(device.Name)
+
 	result = global.DB.Delete(&device)
 	if result.Error != nil {
 		res.FailWithMsg("Device.DeleteVMFailed", c)
@@ -181,6 +221,7 @@ func (DevicesApi) DeleteVM(c *gin.Context) {
 
 
 func (DevicesApi) AddVM(c *gin.Context) {
+
 	var device models.Device
 	var form form.AddVmForm
 	if err := c.ShouldBind(&form); err != nil {
@@ -188,7 +229,15 @@ func (DevicesApi) AddVM(c *gin.Context) {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
+
 	name := form.Name
+	
+	if !utils.ValidateVMName(name) {
+		global.Logger.Printf("invalid vm name:%s\n", name)
+		res.FailWithMsg("Device.InvalidName", c)
+		return
+	}
+	
 	vmSwitch := form.VmSwitch
 	template := form.SrcVmPath
 	templateName := global.Config.Vm.GetTemplateFileName(template)
@@ -208,6 +257,7 @@ func (DevicesApi) AddVM(c *gin.Context) {
 	targetDiskPath := global.Config.Vm.DiskPath + "\\" + name + "_disk"
 	global.Logger.Printf("srcVmPath:%s, targetVmPath:%s, targetDiskPath:%s\n", srcVmPath, targetVmPath, targetDiskPath)
 
+
 	go utils.ImportVM(name, template, srcVmPath, targetVmPath, targetDiskPath, vmSwitch)
 
 	myDevice := &models.Device{
@@ -223,6 +273,7 @@ func (DevicesApi) AddVM(c *gin.Context) {
 	res.OkWithData(myDevice, c)
 }
 
+
 func (DevicesApi) DeviceAllCountGet(c *gin.Context) {
 	var countNum int64
 	global.DB.Model(&models.Device{}).Count(&countNum)
@@ -232,11 +283,13 @@ func (DevicesApi) DeviceAllCountGet(c *gin.Context) {
 
 }
 
+
 func (DevicesApi) DeviceTemplatesGet(c *gin.Context) {
 	data := make(map[string]interface{})
 	data["templates"] = global.Config.Vm.GetTemplates()
 	res.OkWithData(data, c)
 }
+
 
 func (DevicesApi) DeviceTemplateConfigGet(c *gin.Context) {
 	var responses []*res.GetTemplatesListResponse
@@ -271,9 +324,11 @@ func (DevicesApi) DeviceTemplateConfigGet(c *gin.Context) {
 	res.OkWithData(data, c)
 }
 
+
 func (DevicesApi) TemplateConfigUpdate(c *gin.Context) {
 	var template models.Template
 	id := c.Param("id")
+
 	global.DB.Where("id = ?", id).First(&template)
 	if template.Name == "" {
 		res.FailWithMsg("Template.NotExist", c)
@@ -293,9 +348,11 @@ func (DevicesApi) TemplateConfigUpdate(c *gin.Context) {
 	res.OkWithData(template.ID, c)
 }
 
+
 func (DevicesApi) TemplateDelete(c *gin.Context) {
 	var template models.Template
 	id := c.Param("id")
+
 	global.DB.Where("id = ?", id).First(&template)
 	if template.Name == "" {
 		res.FailWithMsg("Template.NotExist", c)
@@ -306,11 +363,13 @@ func (DevicesApi) TemplateDelete(c *gin.Context) {
 
 }
 
+
 func (DevicesApi) DeviceSwitchsGet(c *gin.Context) {
 	data := make(map[string]interface{})
 	data["switchs"] = utils.GetSwitchs()
 	res.OkWithData(data, c)
 }
+
 
 func (DevicesApi) DeviceUnBindUser(c *gin.Context) {
 	var form form.DeviceUnbindUserForm
@@ -323,6 +382,8 @@ func (DevicesApi) DeviceUnBindUser(c *gin.Context) {
 	var device models.Device
 	var user models.User
 	var template models.Template
+
+
 	global.DB.Where("device_id =?", form.DeviceId).First(&bind)
 	if bind.UserId == "" {
 		res.FailWithMsg("Device.UnBindUserFailed", c)
@@ -356,6 +417,7 @@ func (DevicesApi) DeviceUnBindUser(c *gin.Context) {
 	res.OkWithData(form.DeviceId, c)
 }
 
+
 func (DevicesApi) OperateVM(c *gin.Context) {
 	var form form.OperateVmForm
 	if err := c.ShouldBind(&form); err != nil {
@@ -363,8 +425,10 @@ func (DevicesApi) OperateVM(c *gin.Context) {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
+
 	vmId := form.VmId
 	action := form.Action
+
 	var device models.Device
 	result := global.DB.Where("id = ?", vmId).First(&device)
 	if result.Error != nil {
@@ -375,6 +439,10 @@ func (DevicesApi) OperateVM(c *gin.Context) {
 		res.FailWithMsg("Device.NotExist", c)
 		return
 	}
+
+
+
+
 	if action == "1" {
 		if device.Status == "running" {
 			res.FailWithMsg("Device.StatusInvalid", c)
@@ -402,5 +470,78 @@ func (DevicesApi) OperateVM(c *gin.Context) {
 		device.Status = status
 		global.DB.Save(&device)
 	}
+
 	res.OkWithData(device, c)
+}
+
+
+func (DevicesApi) ResetUserPwd(c *gin.Context) {
+	var form form.ResetUserPwdForm
+	if err := c.ShouldBind(&form); err != nil {
+		global.Logger.Printf("reset user password failed:%v\n", err.Error())
+		res.FailWithMsg("Common.InvalidParam", c)
+		return
+	}
+	
+	var device models.Device
+	var template models.Template
+
+	global.DB.Where("id = ?", form.DeviceId).First(&device)
+	if device.Name == "" {
+		res.FailWithMsg("Device.NotExist", c)
+		return
+	}
+	
+
+	if device.Status != "running" {
+		res.FailWithMsg("Device.MustBeRunning", c)
+		return
+	}
+	
+
+	userName := utils.GetUserInfoByDevice(form.DeviceId)
+	if userName == "" {
+		res.FailWithMsg("Device.UserNotBind", c)
+		return
+	}
+	
+
+	global.DB.Where("id = ?", device.TemplateId).First(&template)
+	if template.Name == "" {
+		res.FailWithMsg("Device.TemplateNotExist", c)
+		return
+	}
+	
+
+	err := utils.ResetVMUserPwd(userName, form.NewPassword, device.Name, template.UserName, template.UserPwd)
+	if err != nil {
+		global.Logger.Printf("reset user password failed:%v\n", err.Error())
+		res.FailWithMsg("Device.ResetUserPwdFailed", c)
+		return
+	}
+	
+	res.OkWithData(form.DeviceId, c)
+}
+
+
+func (DevicesApi) CheckVmPwd(c *gin.Context) {
+	var form form.CheckVmPwdForm
+	if err := c.ShouldBind(&form); err != nil {
+		global.Logger.Printf("check vm password failed:%v\n", err.Error())
+		res.FailWithMsg("Common.InvalidParam", c)
+		return
+	}
+	
+
+	isValid, err := utils.ValidVMUserPwd(form.VmName, form.Username, form.UserPwd)
+	if err != nil {
+		global.Logger.Printf("check vm password error:%v\n", err.Error())
+		res.FailWithMsg("Device.CheckPasswordFailed", c)
+		return
+	}
+	
+
+	data := make(map[string]interface{})
+	data["valid"] = isValid
+	res.OkWithData(data, c)
 }

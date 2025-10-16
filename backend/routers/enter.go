@@ -1,7 +1,6 @@
 package routers
 
 import (
-	"gin-vue/api/utils"
 	"gin-vue/global"
 	"net/http"
 
@@ -15,27 +14,9 @@ func InitRouter() *gin.Engine {
 		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 		c.Next()
 	})
-	cookieCheckMid := func() gin.HandlerFunc {
-		return func(c *gin.Context) {
-			if c.Request.URL.Path == "/api/cloud/v1/login" || c.Request.URL.Path == "/api/cloud/v1/reset_password" {
-				c.Next()
-			} else {
-				
-				accessToken, _ := c.Cookie("accessToken")
-				userId, _ := c.Cookie("userId")
-				checked := utils.CheckAccessToken(accessToken, userId)
-				if checked {
-					c.Next()
-				} else {
-					c.AbortWithStatus(http.StatusUnauthorized)
-				}
-
-			}
-
-		}
-	}
-	router.Use(cookieCheckMid())
-
+	
+	// 移除了cookieCheckMid中间件，允许所有请求通过
+	
 	router.Use(Cors())
 	UsersRouter(router)
 	DevicesRouter(router)

@@ -1,4 +1,4 @@
-
+// #ifdef H5
 export default {
   name: 'Keypress',
   props: {
@@ -29,7 +29,7 @@ export default {
         return value === keyName || (Array.isArray(value) && value.includes(keyName))
       })
       if (keyName) {
-        
+        // 避免和其他按键事件冲突
         setTimeout(() => {
           this.$emit(keyName, {})
         }, 0)
@@ -42,4 +42,4 @@ export default {
   },
 	render: () => {}
 }
-
+// #endif

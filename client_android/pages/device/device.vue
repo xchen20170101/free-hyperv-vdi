@@ -38,7 +38,7 @@
         },
         onLoad() {
             console.log("load vm data")
-            console.log(uni.getStorageSync("cookie"))
+            // 移除了cookie相关的日志输出
             this.getVmList()
             this.startTimer()
         },
@@ -48,23 +48,23 @@
         methods: {
             startTimer() {
                 this.timer = setInterval(() => {
-                    
+                    // 在这里编写定时执行的代码
                     this.getVmList()
-                }, 5000); 
+                }, 5000); // 时间间隔为 1 秒（1000毫秒）
             },
             getVmList() {
-                
+                // 发起 GET 请求
                 var serverIp = uni.getStorageSync("serverIp")
-                var targetUrl = 'http:
+                var targetUrl = 'http://' + serverIp + ':8090/api/cloud/v1/devices?count=100&index=1&name='
                 console.log("targetUrl:", targetUrl)
                 const self = this
                 uni.request({
-                    url: targetUrl, 
+                    url: targetUrl, // 请求的 URL 地址
                     method: 'GET',
                     mode: 'cors',
                     header: {
-                        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
-                        'Cookie': uni.getStorageSync("cookie") 
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8'
+                        // 移除了Cookie头
                     },
                     success: function(res) {
                         console.log('GET 请求成功', res.data.data.devices);
@@ -80,24 +80,24 @@
                                 return tempItem
                             })
                         console.log(self.vms)
-                        
+                        // 在这里处理获取到的数据
                     },
                     fail: function(err) {
                         console.error('GET 请求失败', err);
-                        
+                        // 处理请求失败的情况
                     }
                 });
 
             },
             operateVm(vmId, action) {
                 var serverIp = uni.getStorageSync("serverIp")
-                var targetUrl = 'http:
+                var targetUrl = 'http://' + serverIp + ':8090/api/cloud/v1/vm/operate'
                 const self = this
                 uni.request({
                     url: targetUrl,
                     method: 'POST',
                     header: {
-                        'content-type': 'application/x-www-form-urlencoded' 
+                        'content-type': 'application/x-www-form-urlencoded' // 设置请求头为表单形式
                     },
                     data: {
                         vm_id: vmId,
@@ -111,7 +111,7 @@
                     },
                     fail: function(err) {
                         console.error('POST 请求失败', err);
-                        
+                        // 处理请求失败的情况
                     }
                 });
             },
@@ -125,7 +125,7 @@
                 this.operateVm(item.id, '3')
             },
             connect(desktop) {
-                
+                // Handle connect button click for the specific desktop
                 console.log('Connect to desktop:', desktop);
                 const testPlugin = uni.requireNativePlugin('callrdc')
                 console.log("sssss1")
@@ -168,7 +168,7 @@
 
     .item-info {
         margin-bottom: 10px;
-        
+        /* 控制每个信息的间距 */
     }
 
     label {

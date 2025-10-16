@@ -155,9 +155,9 @@ export default {
   background: #eee !important;
 }
 .dialog-header span{
-  margin-bottom: 10px; 
-  font-size: 14px; 
-  color: #666666; 
+  margin-bottom: 10px; /* 设置与表单之间的垂直间距 */
+  font-size: 14px; /* 设置字体大小 */
+  color: #666666; /* 设置字体颜色 */
 }
 
 </style>

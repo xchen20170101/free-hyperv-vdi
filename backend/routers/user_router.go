@@ -31,4 +31,9 @@ func UsersRouter(router *gin.Engine) {
 
 	router.PUT("/api/cloud/v1/user", userApi.UserUpdateSelfPassword)
 
+	router.GET("/api/cloud/v1/licenses", userApi.UserLicenseGet)
+
+	router.POST("/api/cloud/v1/licenses", userApi.LicenseActive)
+
+	router.GET("/api/cloud/v1/licenses_all", userApi.GetLicenses)
 }

@@ -79,3 +79,17 @@ type TemplateConfigUpdateForm struct {
 	UserName string `form:"username" binding:"required"`
 	UserPwd  string `form:"userpwd" binding:"required"`
 }
+
+
+type ResetUserPwdForm struct {
+	DeviceId    string `form:"deviceId" binding:"required"`
+	DeviceName  string `form:"deviceName" binding:"required"` 
+	NewPassword string `form:"newPassword" binding:"required"`
+}
+
+
+type CheckVmPwdForm struct {
+	VmName   string `form:"vmname" binding:"required"`
+	Username string `form:"username" binding:"required"`
+	UserPwd  string `form:"userpwd" binding:"required"`
+}
