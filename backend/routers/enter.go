@@ -2,6 +2,7 @@ package routers
 
 import (
 	"gin-vue/global"
+	"gin-vue/middleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,13 +16,21 @@ func InitRouter() *gin.Engine {
 		c.Next()
 	})
 	
-	// 移除了cookieCheckMid中间件，允许所有请求通过
-	
 	router.Use(Cors())
-	UsersRouter(router)
-	DevicesRouter(router)
-	DisksRouter(router)
-	GpusRouter(router)
+	
+	// 公开路由（不需要token验证）
+	PublicUsersRouter(router)
+	
+	// 需要token验证的路由组
+	authGroup := router.Group("")
+	authGroup.Use(middleware.TokenAuthMiddleware())
+	{
+		AuthUsersRouter(authGroup)
+		DevicesRouter(authGroup)
+		DisksRouter(authGroup)
+		GpusRouter(authGroup)
+	}
+	
 	return router
 }
 

@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func DevicesRouter(router *gin.Engine) {
+func DevicesRouter(router gin.IRouter) {
 	deviceApi := api.ApiGroupApp.DevicesApi
 
 	router.GET("/api/cloud/v1/devices", deviceApi.GetDevicesList)

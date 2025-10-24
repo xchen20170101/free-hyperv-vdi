@@ -149,7 +149,7 @@ func (DisksApi) AddDiskToVM(c *gin.Context) {
 		res.FailWithMsg("Disk.DeviceNotExist", c)
 		return
 	}
-	if device.Status == "running" {
+	if device.Status == "Running" {
 		res.FailWithMsg("Disk.DeviceIsRunning", c)
 		return
 	}
@@ -198,7 +198,7 @@ func (DisksApi) DiskUnbind(c *gin.Context) {
 		res.FailWithMsg("Disk.DeviceNotExist", c)
 		return
 	}
-	if device.Status == "running" {
+	if device.Status == "Running" {
 		res.FailWithMsg("Disk.DeviceIsRunning", c)
 		return
 	}

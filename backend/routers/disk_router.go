@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func DisksRouter(router *gin.Engine) {
+func DisksRouter(router gin.IRouter) {
 	diskApi := api.ApiGroupApp.DiskApi
 
 
