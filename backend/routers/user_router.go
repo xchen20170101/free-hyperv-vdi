@@ -6,12 +6,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UsersRouter(router *gin.Engine) {
+// PublicUsersRouter 公开路由（不需要token验证）
+func PublicUsersRouter(router *gin.Engine) {
 	userApi := api.ApiGroupApp.UserApi
 
+	// 登录接口，不需要token
 	router.POST("/api/cloud/v1/login", userApi.UserLogin)
-
+	
+	// Android端重置密码接口（可能需要根据实际需求调整是否需要认证）
 	router.POST("/api/cloud/v1/reset_password", userApi.AndroidResetPassword)
+}
+
+// AuthUsersRouter 需要token验证的路由
+func AuthUsersRouter(router gin.IRouter) {
+	userApi := api.ApiGroupApp.UserApi
 
 	router.DELETE("/api/cloud/v1/logout", userApi.UserLogout)
 

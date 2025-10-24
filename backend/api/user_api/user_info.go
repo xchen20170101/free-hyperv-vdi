@@ -148,14 +148,13 @@ func (UsersApi) UserUpdate(c *gin.Context) {
 
 func (UsersApi) UserUpdateSelfPassword(c *gin.Context) {
 	var myUser models.User
-	// 移除了userId从cookie获取的代码
-	// userId, err := c.Cookie("userId")
-	// if err != nil {
-	// 	res.FailWithMsg("Common.InvalidParam", c)
-	// 	return
-	// }
-	// 使用默认用户ID
-	userId := "default-user-id"
+	// 从上下文中获取userId（由中间件设置）
+	userId, exists := c.Get("userId")
+	if !exists {
+		res.FailWithMsg("Common.InvalidParam", c)
+		return
+	}
+	
 	result := global.DB.First(&myUser, "id", userId)
 	if result.Error != nil {
 		res.FailWithMsg("User.NotExist", c)
@@ -205,16 +204,20 @@ func (UsersApi) UserAllCountGet(c *gin.Context) {
 
 
 func (UsersApi) UserProfileGet(c *gin.Context) {
-	// 移除了userId从cookie获取的代码
-	// userId, err := c.Cookie("userId")
-	// if err != nil {
-	// 	res.FailWithMsg("Common.InvalidParam", c)
-	// 	return
-	// }
-	// 使用默认用户ID
-	userId := "default-user-id"
+	// 从上下文中获取userId（由中间件设置）
+	userId, exists := c.Get("userId")
+	if !exists {
+		res.FailWithMsg("Common.InvalidParam", c)
+		return
+	}
+	
 	var user models.User
-	global.DB.Where("id = ?", userId).First(&user)
+	result := global.DB.Where("id = ?", userId).First(&user)
+	if result.Error != nil {
+		res.FailWithMsg("User.NotExist", c)
+		return
+	}
+	
 	data := &res.GetUserProfileReponse{
 		UserName: user.Name,
 		Password: user.Password,
@@ -422,48 +425,85 @@ func (UsersApi) UserLogin(c *gin.Context) {
 
 	requestFrom := c.Request.UserAgent()
 	if strings.Contains(requestFrom, "Windows") && user.Role == "云桌面用户" {
+		global.Logger.Println("User.NoPermission")
 		res.FailWithMsg("User.NoPermission", c)
 		return
 	}
 
 	if user.Password != pwd {
+		global.Logger.Println("User.PasswordIsWrong")
 		res.FailWithMsg("User.PasswordIsWrong", c)
 		return
 	}
 
 	if user.Status != "启用" {
+		global.Logger.Println("User.Disable")
 		res.FailWithMsg("User.Disable", c)
 		return
 	}
-	// tokenValue := models.NewUUID()  // 移除了未使用的变量声明
 
+	// 生成新的token（30分钟有效期）
+	tokenValue := models.NewUUID()
+	now := time.Now().Unix()
+	cryptoperiod := int64(1800) // 30分钟 = 1800秒
 
+	// 查询该用户是否已有token
+	var existingToken models.Token
+	result := global.DB.Where("user_id = ?", user.ID).First(&existingToken)
 
-
-
-
-
-	// 移除了UpdateOrCreateToken调用和cookie设置
-	// utils.UpdateOrCreateToken(user.ID, tokenValue)
-	// c.SetCookie("accessToken", tokenValue, 3600, "/", "", false, true)
-	// c.SetCookie("userId", user.ID, 3600, "/", "", false, true)
-	var token models.Token
-	global.DB.Where("user_id=?", user.ID).First(&token)
-
-	res.Ok(token, "登录成功", c)
+	var responseToken models.Token
+	
+	if result.Error != nil {
+		// 不存在，创建新token
+		newToken := models.Token{
+			ID:           models.NewUUID(),
+			Value:        tokenValue,
+			Cryptoperiod: cryptoperiod,
+			CreatedTime:  now,
+			UserId:       user.ID,
+		}
+		global.DB.Create(&newToken)
+		responseToken = newToken
+	} else {
+		// 已存在，更新token（这会使之前的token失效，实现单点登录）
+		existingToken.Value = tokenValue
+		existingToken.CreatedTime = now
+		existingToken.Cryptoperiod = cryptoperiod
+		global.DB.Save(&existingToken)
+		responseToken = existingToken
+	}
+	
+	// 设置Cookie（关键：让浏览器自动携带token）
+	// 参数：name, value, maxAge(秒), path, domain, secure, httpOnly
+	c.SetCookie("accessToken", tokenValue, int(cryptoperiod), "/", "", false, true)
+	c.SetCookie("userId", user.ID, int(cryptoperiod), "/", "", false, true)
+	
+	global.Logger.Printf("用户 %s 登录成功，Token: %s", user.Name, tokenValue)
+	
+	res.Ok(responseToken, "登录成功", c)
 }
 
 func (UsersApi) UserLogout(c *gin.Context) {
-
-
-	// 移除了userId从cookie获取的代码
-	// userId, err := c.Cookie("userId")
-	// if err != nil {
-	// 	res.FailWithMsg("User.LogoutFailed", c)
-	// 	return
-	// }
-	// 使用默认用户ID
-	userId := "default-user-id"
+	// 从上下文中获取userId（由中间件设置）
+	userId, exists := c.Get("userId")
+	if !exists {
+		// 如果中间件没有设置，尝试从Cookie获取
+		userIdStr, err := c.Cookie("userId")
+		if err != nil {
+			res.FailWithMsg("User.LogoutFailed", c)
+			return
+		}
+		userId = userIdStr
+	}
+	
+	// 删除数据库中的token
 	global.DB.Where("user_id = ?", userId).Delete(&models.Token{})
+	
+	// 清除Cookie
+	c.SetCookie("accessToken", "", -1, "/", "", false, true)
+	c.SetCookie("userId", "", -1, "/", "", false, true)
+	
+	global.Logger.Printf("用户 %s 退出成功", userId)
+	
 	res.Ok(userId, "退出成功", c)
 }

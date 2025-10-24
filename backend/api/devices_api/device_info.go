@@ -97,7 +97,7 @@ func (DevicesApi) GetUnbindDevicesList(c *gin.Context) {
 		if isBind {
 			continue
 		}
-		if value.Status != "running" {
+		if value.Status != "Running" {
 			continue
 		}
 		temp := &res.GetDevicesListResponse{
@@ -134,7 +134,7 @@ func (DevicesApi) UpdateVM(c *gin.Context) {
 		res.FailWithMsg("Device.NotExist", c)
 		return
 	}
-	if device.Status == "running" {
+	if device.Status == "Running" {
 		res.FailWithMsg("Device.IsRunning", c)
 		return
 	}
@@ -192,7 +192,7 @@ func (DevicesApi) DeleteVM(c *gin.Context) {
 		res.FailWithMsg("Device.NotExist", c)
 		return
 	}
-	if device.Status == "running" {
+	if device.Status == "Running" {
 		res.FailWithMsg("Device.IsRunning", c)
 		return
 	}
@@ -399,7 +399,7 @@ func (DevicesApi) DeviceUnBindUser(c *gin.Context) {
 		res.FailWithMsg("Device.UnBindUserFailed", c)
 		return
 	}
-	if device.Status != "running" {
+	if device.Status != "Running" {
 		res.FailWithMsg("Device.MustBeRunning", c)
 		return
 	}
@@ -444,7 +444,7 @@ func (DevicesApi) OperateVM(c *gin.Context) {
 
 
 	if action == "1" {
-		if device.Status == "running" {
+		if device.Status == "Running" {
 			res.FailWithMsg("Device.StatusInvalid", c)
 			return
 		}
@@ -465,10 +465,96 @@ func (DevicesApi) OperateVM(c *gin.Context) {
 			res.FailWithMsg("Device.StatusInvalid", c)
 			return
 		}
-		_ = utils.CloseVM(device.Name, device.Status)
-		status := utils.OpenVM(device.Name, device.Status)
-		device.Status = status
+		
+		// 设置状态为重启中并立即保存
+		device.Status = "Restarting"
+		device.Ip = ""
 		global.DB.Save(&device)
+		global.Logger.Printf("VM %s: Restart request received, setting status to Restarting\n", device.Name)
+		
+		// 异步执行重启操作
+		go func(vmName string, vmId string, hasGpu bool, gpuInfo string) {
+			global.Logger.Printf("VM %s: Starting async restart procedure...\n", vmName)
+			
+			if hasGpu {
+				global.Logger.Printf("VM %s has GPU bound (GPU ID: %s), applying extended restart procedure...\n", vmName, gpuInfo)
+			}
+			
+			// 执行关闭操作
+			_ = utils.CloseVM(vmName, "Restarting")
+			
+			// 如果绑定了GPU，需要等待更长时间确保GPU资源完全释放
+			if hasGpu {
+				global.Logger.Printf("VM %s: Waiting for GPU resources to be released...\n", vmName)
+				
+				// 初始等待，让VM开始关闭过程
+				global.Logger.Printf("VM %s: Initial wait (8 seconds) for VM shutdown to begin...\n", vmName)
+				time.Sleep(8 * time.Second)
+				
+				// 验证VM确实已经完全关闭
+				maxRetries := 15
+				vmFullyStopped := false
+				for i := 0; i < maxRetries; i++ {
+					vmState := utils.GetVMState(vmName)
+					global.Logger.Printf("VM %s state check %d/%d: %s\n", vmName, i+1, maxRetries, vmState)
+					
+					if vmState == "Off" {
+						global.Logger.Printf("VM %s is fully stopped, waiting for GPU resources to stabilize...\n", vmName)
+						vmFullyStopped = true
+						
+						// ⭐ 关键修改：VM关闭后强制等待25秒
+						// 确保GPU的MMIO空间（9GB）完全释放
+						// 从15秒增加到25秒以解决第5次重启卡住问题
+						global.Logger.Printf("VM %s: VM stopped, enforcing 25 seconds wait for GPU resource cleanup...\n", vmName)
+						time.Sleep(25 * time.Second)
+						global.Logger.Printf("VM %s: GPU resource cleanup wait completed\n", vmName)
+						
+						break
+					}
+					
+					// 如果还未关闭，继续等待
+					time.Sleep(1 * time.Second)
+				}
+				
+				if !vmFullyStopped {
+					global.Logger.Printf("WARNING: VM %s did not reach 'Off' state within timeout, proceeding anyway\n", vmName)
+					// 即使超时，也强制等待一段时间（增加到30秒以匹配新的等待策略）
+					global.Logger.Printf("VM %s: Enforcing additional 30 seconds wait due to timeout...\n", vmName)
+					time.Sleep(30 * time.Second)
+				}
+				
+				// 额外等待，确保Hyper-V完全释放GPU的MMIO资源
+				// GPU-PV需要释放 1GB 低位 + 8GB 高位的MMIO空间
+				// 从5秒增加到8秒以提高稳定性
+				global.Logger.Printf("VM %s: Final wait (8 seconds) for GPU MMIO resources to be fully released...\n", vmName)
+				time.Sleep(8 * time.Second)
+				
+				global.Logger.Printf("VM %s: GPU resource release complete, ready to start\n", vmName)
+			} else {
+				// 没有GPU时，短暂等待即可
+				global.Logger.Printf("VM %s: No GPU bound, using standard restart delay\n", vmName)
+				time.Sleep(2 * time.Second)
+			}
+			
+			// 启动VM
+			global.Logger.Printf("VM %s: Starting VM...\n", vmName)
+			status := utils.OpenVM(vmName, "Restarting")
+			
+			// 更新数据库中的最终状态
+			var deviceToUpdate models.Device
+			result := global.DB.Where("id = ?", vmId).First(&deviceToUpdate)
+			if result.Error == nil {
+				deviceToUpdate.Status = status
+				global.DB.Save(&deviceToUpdate)
+				global.Logger.Printf("VM %s: Restart completed, final status: %s\n", vmName, status)
+			} else {
+				global.Logger.Printf("WARNING: VM %s restart completed but failed to update database: %v\n", vmName, result.Error)
+			}
+			
+			if hasGpu {
+				global.Logger.Printf("VM %s: Restart with GPU completed, new status: %s\n", vmName, status)
+			}
+		}(device.Name, device.ID, device.GpuInfo != "", device.GpuInfo)
 	}
 
 	res.OkWithData(device, c)
@@ -493,7 +579,7 @@ func (DevicesApi) ResetUserPwd(c *gin.Context) {
 	}
 	
 
-	if device.Status != "running" {
+	if device.Status != "Running" {
 		res.FailWithMsg("Device.MustBeRunning", c)
 		return
 	}

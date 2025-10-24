@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GpusRouter(router *gin.Engine) {
+func GpusRouter(router gin.IRouter) {
 	gpuApi := api.ApiGroupApp.GpuApi
 
 	router.GET("/api/cloud/v1/gpus", gpuApi.GetGpus)
