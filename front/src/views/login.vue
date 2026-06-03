@@ -96,14 +96,14 @@ export default {
 .login-form {
   border-radius: 6px;
 
-  
+  /*background: #ffffff;*/
   width: 400px;
   padding: 150px 15px 150px 150px;
   text-align: center;
 }
 .login-img {
   border-radius: 6px;
-  
+  /*background: #ffffff;*/
   padding: 180px 0px 100px 100px;
 }
 </style>

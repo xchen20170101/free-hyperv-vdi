@@ -8,7 +8,28 @@
 </template>
 
 <script>
-	
+	/**
+	 * Forms 表单
+	 * @description 由输入框、选择器、单选框、多选框等控件组成，用以收集、校验、提交数据
+	 * @tutorial https://ext.dcloud.net.cn/plugin?id=2773
+	 * @property {Object} rules  							表单校验规则
+	 * @property {String} validateTrigger = [bind|submit]	校验触发器方式 默认 submit 可选
+	 * @value bind 	发生变化时触发
+	 * @value submit 	提交时触发
+	 * @property {String} labelPosition = [top|left]				label 位置 默认 left 可选
+	 * @value top		顶部显示 label
+	 * @value left		左侧显示 label
+	 * @property {String} labelWidth  							label 宽度，默认 65px
+	 * @property {String} labelAlign = [left|center|right]		label 居中方式  默认 left 可选
+	 * @value left		label 左侧显示
+	 * @value center	label 居中
+	 * @value right		label 右侧对齐
+	 * @property {String} errShowType = [undertext|toast|modal]	校验错误信息提示方式
+	 * @value undertext	错误信息在底部显示
+	 * @value toast		错误信息toast显示
+	 * @value modal		错误信息modal显示
+	 * @event {Function} submit 提交时触发
+	 */
 	import Vue from 'vue'
 	Vue.prototype.binddata = function(name, value, formName) {
 		if (formName) {
@@ -38,29 +59,29 @@
 					return {}
 				}
 			},
-			
+			// 表单校验规则
 			rules: {
 				type: Object,
 				default () {
 					return {}
 				}
 			},
-			
+			// 校验触发器方式，默认 关闭
 			validateTrigger: {
 				type: String,
 				default: ''
 			},
-			
+			// label 位置，可选值 top/left
 			labelPosition: {
 				type: String,
 				default: 'left'
 			},
-			
+			// label 宽度，单位 px
 			labelWidth: {
 				type: [String, Number],
 				default: 65
 			},
-			
+			// label 居中方式，可选值 left/center/right
 			labelAlign: {
 				type: String,
 				default: 'left'
@@ -123,11 +144,19 @@
 					item.init()
 				})
 			},
-			
+			/**
+			 * 设置校验规则
+			 * @param {Object} formRules
+			 */
 			setRules(formRules) {
 				this.init(formRules)
 			},
-			
+			/**
+			 * 公开给用户使用
+			 * 设置自定义表单组件 value 值
+			 *  @param {String} name 字段名称
+			 *  @param {String} value 字段值
+			 */
 			setValue(name, value, callback) {
 				let example = this.childrens.find(child => child.name === name)
 				if (!example) return null
@@ -139,12 +168,18 @@
 				return example.triggerCheck(value, callback)
 			},
 
-			
+			/**
+			 * TODO 表单提交， 小程序暂不支持这种用法
+			 * @param {Object} event
+			 */
 			submitForm(event) {
 				const value = event.detail.value
 				return this.validateAll(value || this.formData, 'submit')
 			},
-			
+			/**
+			 * 表单重置
+			 * @param {Object} event
+			 */
 			resetForm(event) {
 				this.childrens.forEach(item => {
 					item.errMsg = ''
@@ -166,12 +201,17 @@
 				this.$emit('reset', event)
 			},
 
-			
+			/**
+			 * 触发表单校验，通过 @validate 获取
+			 * @param {Object} validate
+			 */
 			validateCheck(validate) {
 				if (validate === null) validate = null
 				this.$emit('validate', validate)
 			},
-			
+			/**
+			 * 校验所有或者部分表单
+			 */
 			async validateAll(invalidFields, type, callback) {
 
 				this.childrens.forEach(item => {
@@ -202,13 +242,13 @@
 						}
 					}
 
-					
+					// 如果存在 required 才会将内容插入校验对象
 					if (!isNoField && (!tempInvalidFields[item] && tempInvalidFields[item] !== false)) {
 						delete tempInvalidFields[item]
 					}
 
 				})
-				
+				// 循环字段是否存在于校验规则中
 				for (let i in this.formRules) {
 					for (let j in tempInvalidFields) {
 						if (i === j) {
@@ -274,40 +314,56 @@
 				}
 			},
 
-			
+			/**
+			 * 外部调用方法
+			 * 手动提交校验表单
+			 * 对整个表单进行校验的方法，参数为一个回调函数。
+			 */
 			submit(callback) {
-				
+				// Object.assign(this.formData,formData)
 				return this.validateAll(this.formData, 'submit', callback)
 			},
 
-			
+			/**
+			 * 外部调用方法
+			 * 校验表单
+			 * 对整个表单进行校验的方法，参数为一个回调函数。
+			 */
 			validate(callback) {
 				return this.validateAll(this.formData, '', callback)
 			},
 
-			
+			/**
+			 * 部分表单校验
+			 * @param {Object} props
+			 * @param {Object} cb
+			 */
 			validateField(props, callback) {
 				props = [].concat(props);
 				let invalidFields = {}
 				this.childrens.forEach(item => {
-					
+					// item.parentVal((val, name) => {
 					if (props.indexOf(item.name) !== -1) {
 						invalidFields = Object.assign({}, invalidFields, {
 							[item.name]: this.formData[item.name]
 						})
 					}
-					
+					// })
 
 				})
 				return this.validateAll(invalidFields, '', callback)
 			},
 
-			
+			/**
+			 * 对整个表单进行重置，将所有字段值重置为初始值并移除校验结果
+			 */
 			resetFields() {
 				this.resetForm()
 			},
 
-			
+			/**
+			 * 移除表单项的校验结果。传入待移除的表单项的 prop 属性或者 prop 组成的数组，如不传则移除整个表单的校验结果
+			 */
 			clearValidate(props) {
 				props = [].concat(props);
 				this.childrens.forEach(item => {
@@ -327,22 +383,22 @@
 					}
 				})
 			},
-			
+			// 把 value 转换成指定的类型
 			_getValue(item, value) {
 				const rules = item.formRules.rules || []
 				const isRuleNum = rules.find(val => val.format && this.type_filter(val.format))
 				const isRuleBool = rules.find(val => val.format && val.format === 'boolean' || val.format === 'bool')
-				
+				// 输入值为 number
 				if (isRuleNum) {
 					value = value === '' || value === null ? null : Number(value)
 				}
-				
+				// 简单判断真假值
 				if (isRuleBool) {
 					value = !value ? false : true
 				}
 				return value
 			},
-			
+			// 过滤数字类型
 			type_filter(format) {
 				return format === 'int' || format === 'double' || format === 'number'
 			}
@@ -353,12 +409,12 @@
 <style lang="scss" scoped>
 	.uni-forms {
 		overflow: hidden;
-		
-		
+		// padding: 10px 15px;
+		// background-color: #fff;
 	}
 
 	.uni-forms--top {
 		padding: 10px 15px;
-		
+		// padding-top: 22px;
 	}
 </style>

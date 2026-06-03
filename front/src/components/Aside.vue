@@ -14,6 +14,28 @@
       <b style="color:#ffffff;" v-show="!isCollapse">云桌面管理平台</b>
     </div>
 
+<!--    <div v-for="item in menus" :key="item.id">-->
+<!--      <div v-if="item.path">-->
+<!--        <el-menu-item :index="item.path">-->
+<!--          <i :class="item.icon"></i>-->
+<!--          <span slot="title">{{ item.name }}</span>-->
+<!--        </el-menu-item>-->
+<!--      </div>-->
+<!--      <div v-else>-->
+<!--        <el-submenu :index="item.id + ''">-->
+<!--          <template slot="title">-->
+<!--            <i :class="item.icon"></i>-->
+<!--            <span slot="title" v-if="!isCollapse">{{ item.name }}</span>-->
+<!--          </template>-->
+<!--          <div  v-for="subItem in item.children" :key="subItem.id">-->
+<!--            <el-menu-item :index="subItem.path">-->
+<!--              <i :class="subItem.icon"></i>-->
+<!--              <span slot="title">{{ subItem.name }}</span>-->
+<!--            </el-menu-item>-->
+<!--          </div>-->
+<!--        </el-submenu>-->
+<!--      </div>-->
+<!--    </div>-->
     <el-menu-item index="/home">
         <i class="el-icon-s-home"></i>
         <span slot="title">主页</span>
@@ -38,6 +60,7 @@
         <i class="el-icon-camera-solid"></i>
         <span slot="title">模板配置</span>
     </el-menu-item>
+    <!-- 移除了授权管理菜单项 -->
   </el-menu>
 </template>
 

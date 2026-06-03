@@ -2,15 +2,24 @@
   <el-card>
   <div style="margin: 10px 0">
     <el-input style="width: 200px" placeholder="请输入名称" suffix-icon="el-icon-search" v-model="name"></el-input>
+<!--    <el-input style="width: 200px" placeholder="请输入邮箱" suffix-icon="el-icon-message" class="ml-5" v-model="email"></el-input>-->
+<!--    <el-input style="width: 200px" placeholder="请输入地址" suffix-icon="el-icon-position" class="ml-5" v-model="address"></el-input>-->
     <el-button class="ml-5" type="primary" @click="load">搜索</el-button>
     <el-button type="warning" @click="reset">重置</el-button>
   </div>
 
-  <el-table :data="tableData" :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+  <el-table :data="tableData"  :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+    <!-- <el-table-column prop="id" label="ID"></el-table-column> -->
     <el-table-column prop="name" label="GPU名称" ></el-table-column>
     <el-table-column prop="instancePath" label="实例路径" ></el-table-column>
     <el-table-column prop="bindCount" label="已绑定云桌面数量" ></el-table-column>
+    <!-- <el-table-column label="操作"  align="center">
+      <template slot-scope="scope">
+        <el-button round type="success" @click="handleAllocation(scope.row)">分配</el-button>
+      </template>
+    </el-table-column> -->
   </el-table>
+  <!--        分页组件-->
   <div style="padding: 10px 0">
     <el-pagination
         @size-change="handleSizeChange"
@@ -124,6 +133,7 @@ export default {
     },
 
     bind() {
+      //console.log(this.bindForm)
       this.request.post("/api/cloud/v1/disk/device_bind", this.bindForm).then(res => {
         if (res.status===200) {
           if (res.data.msg == "Disk.DeviceIsRunning") {
@@ -207,7 +217,7 @@ export default {
     },
 
     delBatch() {
-      let ids = this.multipleSelection.map(v => v.id)
+      let ids = this.multipleSelection.map(v => v.id)  // [{}, {}, {}] => [1,2,3]
       this.request.post("/role/del/batch", ids).then(res => {
         if (res.code==='200') {
           this.$message.success("批量删除成功")

@@ -20,7 +20,7 @@ func InitConf() {
 	} else {
 		configFile = "/opt/pcfarm_server/settings.yaml"
 	}
-	
+
 	c := &config.Config{}
 	yamlConf, err := ioutil.ReadFile(configFile)
 	if err != nil {

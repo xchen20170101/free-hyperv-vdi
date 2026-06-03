@@ -23,17 +23,17 @@ func InitGorm() *gorm.DB {
 	dsn := global.Config.Mysql.Dsn()
 	global.Logger.Println("DSN:", dsn)
 	var mysqlLogger logger.Interface
-	if global.Config.System.Env == "debug" { 
-		
+	if global.Config.System.Env == "debug" {
+
 		mysqlLogger = logger.Default.LogMode(logger.Info)
 	} else {
-		mysqlLogger = logger.Default.LogMode(logger.Error) 
+		mysqlLogger = logger.Default.LogMode(logger.Error)
 	}
-	
+
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: mysqlLogger,
 		NamingStrategy: schema.NamingStrategy{
-			SingularTable: true, 
+			SingularTable: true,
 		},
 	})
 	if err != nil {
@@ -42,10 +42,10 @@ func InitGorm() *gorm.DB {
 	db.AutoMigrate(&models.User{})
 	sqlDB, _ := db.DB()
 	sqlDB.SetMaxIdleConns(10)
-	
+
 	sqlDB.SetMaxOpenConns(100)
-	
-	sqlDB.SetConnMaxLifetime(time.Hour * 4) 
+
+	sqlDB.SetConnMaxLifetime(time.Hour * 4)
 	return db
 }
 
@@ -55,7 +55,7 @@ func InitSqliteGorm() *gorm.DB {
 	if err != nil {
 		global.Logger.Println("sqlite connect failed")
 	}
-	
+
 	db.AutoMigrate(&models.User{})
 	db.AutoMigrate(&models.Device{})
 	db.AutoMigrate(&models.Bind{})

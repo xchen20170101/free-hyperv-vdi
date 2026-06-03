@@ -20,23 +20,35 @@
 			mIcon
 		},
 		props: {
-			
+			/**
+			 * 输入类型
+			 */
 			type: String,
-			
+			/**
+			 * 值
+			 */
 			value: String,
-			
+			/**
+			 * 占位符
+			 */
 			placeholder: String,
-			
+			/**
+			 * 是否显示清除按钮
+			 */
 			clearable: {
 				type: [Boolean, String],
 				default: false
 			},
-			
+			/**
+			 * 是否显示密码可见按钮
+			 */
 			displayable: {
 				type: [Boolean, String],
 				default: false
 			},
-			
+			/**
+			 * 自动获取焦点
+			 */
 			focus: {
 				type: [Boolean, String],
 				default: false
@@ -48,9 +60,13 @@
 		},
 		data() {
 			return {
-				
+				/**
+				 * 显示密码明文
+				 */
 				showPassword: false,
-				
+				/**
+				 * 是否获取焦点
+				 */
 				isFocus: false
 			}
 		},
@@ -87,7 +103,7 @@
 		display: inline-flex;
 		flex-direction: row;
 		align-items: center;
-		
+		/* width: 100%; */
 		flex: 1;
 		padding: 0 10px;
 	}
@@ -101,7 +117,7 @@
 	}
 
 	.m-input-icon {
-		
+		/* width: 20px; */
 		font-size: 20px;
 		line-height: 20px;
 		color: #666666;

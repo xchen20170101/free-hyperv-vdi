@@ -8,6 +8,7 @@ import (
 	"gin-vue/modles/res"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +18,7 @@ func (UsersApi) UserCount(c *gin.Context) {
 	rows := global.DB.Find(&user).RowsAffected
 	res.OkWithData(rows, c)
 }
+
 
 func (UsersApi) PasswordModify(c *gin.Context) {
 	var myUser models.User
@@ -38,8 +40,10 @@ func (UsersApi) PasswordModify(c *gin.Context) {
 
 	global.DB.Model(myUser).Updates(myNewUser)
 
+
 	res.OkWithData(myNewUser, c)
 }
+
 
 func (UsersApi) AndroidResetPassword(c *gin.Context) {
 	var user models.User
@@ -116,15 +120,19 @@ func (UsersApi) UserUpdate(c *gin.Context) {
 	userRole := form.Role
 	status := form.Status
 
+
 	if myUser.Name == "vmadmin" && userRole == "云桌面用户" {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
 
+
 	if myUser.Name == "vmadmin" && status == "禁用" {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
+
+
 
 	myNewUser := models.User{
 		Name:     myUser.Name,
@@ -140,11 +148,13 @@ func (UsersApi) UserUpdate(c *gin.Context) {
 
 func (UsersApi) UserUpdateSelfPassword(c *gin.Context) {
 	var myUser models.User
-	userId, err := c.Cookie("userId")
-	if err != nil {
+	// 从上下文中获取userId（由中间件设置）
+	userId, exists := c.Get("userId")
+	if !exists {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
+	
 	result := global.DB.First(&myUser, "id", userId)
 	if result.Error != nil {
 		res.FailWithMsg("User.NotExist", c)
@@ -183,6 +193,7 @@ func (UsersApi) UserGet(c *gin.Context) {
 	res.OkWithData(data, c)
 }
 
+
 func (UsersApi) UserAllCountGet(c *gin.Context) {
 	var users []models.User
 	global.DB.Find(&users)
@@ -191,14 +202,22 @@ func (UsersApi) UserAllCountGet(c *gin.Context) {
 	res.OkWithData(data, c)
 }
 
+
 func (UsersApi) UserProfileGet(c *gin.Context) {
-	userId, err := c.Cookie("userId")
-	if err != nil {
+	// 从上下文中获取userId（由中间件设置）
+	userId, exists := c.Get("userId")
+	if !exists {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
+	
 	var user models.User
-	global.DB.Where("id = ?", userId).First(&user)
+	result := global.DB.Where("id = ?", userId).First(&user)
+	if result.Error != nil {
+		res.FailWithMsg("User.NotExist", c)
+		return
+	}
+	
 	data := &res.GetUserProfileReponse{
 		UserName: user.Name,
 		Password: user.Password,
@@ -206,7 +225,123 @@ func (UsersApi) UserProfileGet(c *gin.Context) {
 	res.OkWithData(data, c)
 }
 
+
+func (UsersApi) UserLicenseGet(c *gin.Context) {
+	var license models.License
+	var isChecked bool
+	global.DB.First(&license)
+	if license.LicenseCode == "" {
+		isChecked = false
+	}
+	machineCode := utils.GetMachineCode()
+	isChecked, _ = utils.CheckLicense(machineCode, license.LicenseCode)
+
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+
+
+	if license.ExpiredTime != -1 && license.ExpiredTime != 0 && license.ExpireFlag != 2 {
+		timeInterval := now - license.ExpiredTime
+
+		if timeInterval > 0 {
+
+			myLicense := models.License{
+				ExpireFlag: 2,
+			}
+			global.DB.Model(license).Updates(myLicense)
+			res.FailWithMsg("User.LicenseExpired", c)
+			return
+		}
+	}
+
+	if license.ExpireFlag == 2 {
+		isChecked = false
+	}
+
+	data := &res.GetUserLicenseResponse{
+		MachineCode: machineCode,
+		IsChecked:   isChecked,
+	}
+	res.OkWithData(data, c)
+}
+
+
+func (UsersApi) LicenseActive(c *gin.Context) {
+	var license models.License
+	var form form.ActiveLicenseForm
+	if err := c.ShouldBind(&form); err != nil {
+		global.Logger.Printf("license active failed:%v\n", err.Error())
+		res.FailWithMsg("Common.InvalidParam", c)
+		return
+	}
+	if form.MachineCode != utils.GetMachineCode() {
+		res.FailWithMsg("Common.InvalidParam", c)
+		return
+	}
+	global.DB.Where("license_code = ?", form.LicenseCode).First(&license)
+	if license.LicenseCode != "" {
+		res.FailWithMsg("User.LicenseExists", c)
+		return
+	}
+	isChecked, licenseType := utils.CheckLicense(utils.GetMachineCode(), form.LicenseCode)
+	if !isChecked {
+		res.FailWithMsg("User.LicenseActiveFailed", c)
+		return
+	}
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+	license.ID = models.NewUUID()
+	license.LicenseCode = form.LicenseCode
+	license.LicenseType = licenseType
+	license.ActiveTime = now
+	var expireFlag int64
+	var expiredTime int64
+	if licenseType == "1" {
+		expiredTime = now + 30*24*3600*1000
+		expireFlag = 1
+	} else {
+		expiredTime = -1
+		expireFlag = 0
+	}
+	license.ExpiredTime = expiredTime
+	license.ExpireFlag = expireFlag
+	global.DB.Create(&license)
+	res.OkWithData(license, c)
+}
+
+
+func (UsersApi) GetLicenses(c *gin.Context) {
+	var licenses []models.License
+	var myLicenses []*res.GetLicensesResponse
+	global.DB.Where("expire_flag < ?", "2").Find(&licenses)
+	data := make(map[string]interface{})
+	for _, value := range licenses {
+		var expireTime string
+		if value.ExpiredTime == -1 {
+			expireTime = "-"
+		} else {
+			expireTime = utils.TransferTimeStamp(value.ExpiredTime)
+		}
+
+		var licenseTypeTarget string
+		if value.LicenseType == "1" {
+			licenseTypeTarget = "测试授权"
+		} else {
+			licenseTypeTarget = "正式授权"
+		}
+		temp := &res.GetLicensesResponse{
+			MachineCode: utils.GetMachineCode(),
+			LicenseCode: value.LicenseCode,
+			LicenseType: licenseTypeTarget,
+			ExpireTime:  expireTime,
+		}
+		myLicenses = append(myLicenses, temp)
+	}
+	data["licenses"] = myLicenses
+	res.OkWithData(data, c)
+}
+
+
 func (UsersApi) UserBindDevices(c *gin.Context) {
+
 
 	var user models.User
 	var form form.BindUserForm
@@ -243,6 +378,7 @@ func (UsersApi) UserBindDevices(c *gin.Context) {
 		global.DB.Create(&myBind)
 	}
 
+
 	res.OkWithData(nil, c)
 }
 
@@ -274,48 +410,100 @@ func (UsersApi) UserDel(c *gin.Context) {
 	res.OkWithData(myUser, c)
 }
 
+
 func (UsersApi) UserLogin(c *gin.Context) {
+
+
 
 	global.Logger.Println("UserAgent:", c.Request.UserAgent())
 
 	var user models.User
-	var token models.Token
 	userName := c.PostForm("username")
 	pwd := c.PostForm("password")
 	global.DB.Where("name = ?", userName).First(&user)
 
+
 	requestFrom := c.Request.UserAgent()
 	if strings.Contains(requestFrom, "Windows") && user.Role == "云桌面用户" {
+		global.Logger.Println("User.NoPermission")
 		res.FailWithMsg("User.NoPermission", c)
 		return
 	}
 
 	if user.Password != pwd {
+		global.Logger.Println("User.PasswordIsWrong")
 		res.FailWithMsg("User.PasswordIsWrong", c)
 		return
 	}
 
 	if user.Status != "启用" {
+		global.Logger.Println("User.Disable")
 		res.FailWithMsg("User.Disable", c)
 		return
 	}
+
+	// 生成新的token（30分钟有效期）
 	tokenValue := models.NewUUID()
+	now := time.Now().Unix()
+	cryptoperiod := int64(1800) // 30分钟 = 1800秒
 
-	utils.UpdateOrCreateToken(user.ID, tokenValue)
-	c.SetCookie("accessToken", tokenValue, 3600, "/", "", false, true)
-	c.SetCookie("userId", user.ID, 3600, "/", "", false, true)
-	global.DB.Where("user_id=?", user.ID).First(&token)
+	// 查询该用户是否已有token
+	var existingToken models.Token
+	result := global.DB.Where("user_id = ?", user.ID).First(&existingToken)
 
-	res.Ok(token, "登录成功", c)
+	var responseToken models.Token
+	
+	if result.Error != nil {
+		// 不存在，创建新token
+		newToken := models.Token{
+			ID:           models.NewUUID(),
+			Value:        tokenValue,
+			Cryptoperiod: cryptoperiod,
+			CreatedTime:  now,
+			UserId:       user.ID,
+		}
+		global.DB.Create(&newToken)
+		responseToken = newToken
+	} else {
+		// 已存在，更新token（这会使之前的token失效，实现单点登录）
+		existingToken.Value = tokenValue
+		existingToken.CreatedTime = now
+		existingToken.Cryptoperiod = cryptoperiod
+		global.DB.Save(&existingToken)
+		responseToken = existingToken
+	}
+	
+	// 设置Cookie（关键：让浏览器自动携带token）
+	// 参数：name, value, maxAge(秒), path, domain, secure, httpOnly
+	c.SetCookie("accessToken", tokenValue, int(cryptoperiod), "/", "", false, true)
+	c.SetCookie("userId", user.ID, int(cryptoperiod), "/", "", false, true)
+	
+	global.Logger.Printf("用户 %s 登录成功，Token: %s", user.Name, tokenValue)
+	
+	res.Ok(responseToken, "登录成功", c)
 }
 
 func (UsersApi) UserLogout(c *gin.Context) {
-
-	userId, err := c.Cookie("userId")
-	if err != nil {
-		res.FailWithMsg("User.LogoutFailed", c)
-		return
+	// 从上下文中获取userId（由中间件设置）
+	userId, exists := c.Get("userId")
+	if !exists {
+		// 如果中间件没有设置，尝试从Cookie获取
+		userIdStr, err := c.Cookie("userId")
+		if err != nil {
+			res.FailWithMsg("User.LogoutFailed", c)
+			return
+		}
+		userId = userIdStr
 	}
+	
+	// 删除数据库中的token
 	global.DB.Where("user_id = ?", userId).Delete(&models.Token{})
+	
+	// 清除Cookie
+	c.SetCookie("accessToken", "", -1, "/", "", false, true)
+	c.SetCookie("userId", "", -1, "/", "", false, true)
+	
+	global.Logger.Printf("用户 %s 退出成功", userId)
+	
 	res.Ok(userId, "退出成功", c)
 }

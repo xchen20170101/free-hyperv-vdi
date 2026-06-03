@@ -14,7 +14,7 @@ import (
 )
 
 func (DisksApi) AddDisk(c *gin.Context) {
-	
+
 	var form form.AddDiskForm
 	if err := c.ShouldBind(&form); err != nil {
 		global.Logger.Printf("add disk failed:%v\n", err.Error())
@@ -29,12 +29,12 @@ func (DisksApi) AddDisk(c *gin.Context) {
 		res.FailWithMsg("Common.InvalidParam", c)
 		return
 	}
-	
+
 	if iCapacity < 1 || iCapacity > 4*1024 {
 		res.FailWithMsg("Disk.OutofLimit", c)
 		return
 	}
-	
+
 	var disk models.Disk
 	global.DB.Where("name = ?", name).First(&disk)
 	if disk.Name != "" {
@@ -44,13 +44,13 @@ func (DisksApi) AddDisk(c *gin.Context) {
 
 	storagePath := global.Config.Vm.DiskPath + "\\" + name + "_disk_extra"
 
-	
+
 	err = utils.CreateDisk(name, storagePath, iCapacity)
 	if err != nil {
 		res.FailWithMsg("Disk.CreateDiskFailed", c)
 		return
 	}
-	
+
 	myDisk := &models.Disk{
 		ID:          models.NewUUID(),
 		Name:        name,
@@ -66,13 +66,13 @@ func (DisksApi) GetDisks(c *gin.Context) {
 	var disks []*res.GetDisksListResponse
 	var totalNum int64
 	var allDisks []*models.Disk
-	
+
 	count, _ := strconv.Atoi(c.Query("count"))
 	pageNum, _ := strconv.Atoi(c.Query("index"))
 	name := c.Query("name")
 	keyword := "%" + name + ""
 	offset := (pageNum - 1) * count
-	
+
 	if name == "" {
 		global.DB.Model(&models.Disk{}).Count(&totalNum)
 		global.DB.Limit(count).Offset(offset).Find(&allDisks)
@@ -80,7 +80,7 @@ func (DisksApi) GetDisks(c *gin.Context) {
 		global.DB.Model(&models.Disk{}).Where("name LIKE ?", keyword).Count(&totalNum)
 		global.DB.Limit(count).Offset(offset).Where("name LIKE ?", keyword).Find(&allDisks)
 	}
-	
+
 	data := make(map[string]interface{})
 	for _, value := range allDisks {
 		temp := &res.GetDisksListResponse{
@@ -99,7 +99,7 @@ func (DisksApi) GetDisks(c *gin.Context) {
 }
 
 func (DisksApi) DeleteDisk(c *gin.Context) {
-	
+
 	var disk models.Disk
 	diskId := c.Param("id")
 	result := global.DB.Where("id = ?", diskId).First(&disk)
@@ -110,24 +110,24 @@ func (DisksApi) DeleteDisk(c *gin.Context) {
 	var diskBind models.DiskBind
 	global.DB.Where("disk_id = ?", diskId).First(&diskBind)
 	if diskBind.DeviceId != "" {
-		
+
 		res.FailWithMsg("Disk.HasBind", c)
 		return
 	}
-	
-	
+
+
 	err := os.RemoveAll(disk.StoragePath)
 	if err != nil {
 		res.FailWithMsg("Disk.RemoveDiskFileFailed", c)
 		return
 	}
-	
+
 	global.DB.Where("ID = ?", diskId).Delete(&models.Disk{})
 	res.OkWithData(diskId, c)
 }
 
 func (DisksApi) AddDiskToVM(c *gin.Context) {
-	
+
 	var form form.BindDiskForm
 	if err := c.ShouldBind(&form); err != nil {
 		global.Logger.Printf("add disk to vm failed:%v\n", err.Error())
@@ -136,7 +136,7 @@ func (DisksApi) AddDiskToVM(c *gin.Context) {
 	}
 	diskId := form.DiskId
 	deviceName := form.DeviceName
-	
+
 	var disk models.Disk
 	global.DB.Where("id = ?", diskId).First(&disk)
 	if disk.Name == "" {
@@ -149,7 +149,7 @@ func (DisksApi) AddDiskToVM(c *gin.Context) {
 		res.FailWithMsg("Disk.DeviceNotExist", c)
 		return
 	}
-	if device.Status == "running" {
+	if device.Status == "Running" {
 		res.FailWithMsg("Disk.DeviceIsRunning", c)
 		return
 	}
@@ -160,13 +160,13 @@ func (DisksApi) AddDiskToVM(c *gin.Context) {
 		return
 	}
 
-	
+
 	err := utils.BindDiskToVM(deviceName, disk.Name, disk.StoragePath)
 	if err != nil {
 		res.FailWithMsg("Disk.BindToVMFailed", c)
 		return
 	}
-	
+
 	myDiskBind := &models.DiskBind{
 		ID:       models.NewUUID(),
 		DeviceId: device.ID,
@@ -177,10 +177,10 @@ func (DisksApi) AddDiskToVM(c *gin.Context) {
 }
 
 func (DisksApi) DiskUnbind(c *gin.Context) {
-	
+
 	var disk models.Disk
 	diskId := c.Param("id")
-	
+
 	global.DB.Where("id = ?", diskId).First(&disk)
 	if disk.Name == "" {
 		res.FailWithMsg("Disk.NotExist", c)
@@ -198,17 +198,17 @@ func (DisksApi) DiskUnbind(c *gin.Context) {
 		res.FailWithMsg("Disk.DeviceNotExist", c)
 		return
 	}
-	if device.Status == "running" {
+	if device.Status == "Running" {
 		res.FailWithMsg("Disk.DeviceIsRunning", c)
 		return
 	}
-	
+
 	err := utils.UnBindDiskFromVM(device.Name, disk.Name, disk.StoragePath)
 	if err != nil {
 		res.FailWithMsg("Disk.UnbindFailed", c)
 		return
 	}
-	
+
 	global.DB.Where("disk_id = ?", diskId).Delete(&models.DiskBind{})
 	res.OkWithData(diskId, c)
 }

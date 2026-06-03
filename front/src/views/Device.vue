@@ -2,6 +2,8 @@
   <el-card>
   <div style="margin: 10px 0">
     <el-input style="width: 200px" placeholder="请输入名称" suffix-icon="el-icon-search" v-model="name"></el-input>
+<!--    <el-input style="width: 200px" placeholder="请输入邮箱" suffix-icon="el-icon-message" class="ml-5" v-model="email"></el-input>-->
+<!--    <el-input style="width: 200px" placeholder="请输入地址" suffix-icon="el-icon-position" class="ml-5" v-model="address"></el-input>-->
     <el-button class="ml-5" type="primary" @click="load">搜索</el-button>
     <el-button type="warning" @click="reset">刷新</el-button>
   </div>
@@ -10,7 +12,8 @@
     <el-button type="primary" @click="handleAdd" title="基于模板创建">快速新建 <i class="el-icon-circle-plus-outline"></i></el-button>
   </div>
 
-  <el-table :data="tableData" :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+  <el-table :data="tableData"  :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+    <!-- <el-table-column prop="id" label="ID"></el-table-column> -->
     <el-table-column prop="name" label="云桌面名称" ></el-table-column>
     <el-table-column prop="username" label="所属用户" ></el-table-column>
     <el-table-column prop="templateInfo" label="所属模板" ></el-table-column>
@@ -82,7 +85,15 @@
         </div>
       </template>
     </el-table-column>
+    <el-table-column label=""  align="center">
+      <template slot-scope="scope">
+        <div class="button-container">
+          <el-button round type="warning" @click="resetUserPwd(scope.row)" class="reset-pwd-btn">重置密码</el-button>
+        </div>
+      </template>
+    </el-table-column>
   </el-table>
+  <!--        分页组件-->
   <div style="padding: 10px 0">
     <el-pagination
         @size-change="handleSizeChange"
@@ -95,13 +106,17 @@
     </el-pagination>
   </div>
 
+
+
   <el-dialog title="云桌面信息" :visible.sync="dialogFormVisible" width="50%" >
     <el-form label-width="80px" size="small">
       <el-form-item label="名称">
-        <el-input v-model="addForm.name" autocomplete="off"></el-input>
+        <el-input v-model="addForm.name" autocomplete="off" @input="validateVMName" placeholder="只能包含字母、数字和下划线，不能以下划线开头"></el-input>
+        <div v-if="nameError" style="color: #F56C6C; font-size: 12px; margin-top: 5px;">{{ nameError }}</div>
       </el-form-item>
 
     <el-form-item label="模板" prop="srcVmPath">
+      <!-- <el-input v-model="addForm.srcVmPath" autocomplete="off" placeholder="请输入模板云桌面文件的路径，格式：D:\VM\Virtual Machines\example.vmcx"></el-input> -->
       <el-select v-model="addForm.srcVmPath" placeholder="请选择" style="width: 100%">
           <el-option v-for="item in templates" :key="item" :value="item">
             {{ item }}
@@ -126,6 +141,10 @@
 
   <el-dialog title="云桌面信息" :visible.sync="dialogUpdateFormVisible" width="30%" >
     <el-form label-width="80px" size="small">
+      <!-- <el-form-item label="名称">
+        <el-input v-model="editForm.name" autocomplete="off"></el-input>
+      </el-form-item> -->
+
       <el-form-item label="内存">
         <el-select v-model="editForm.memoryInfo" placeholder="请选择内存大小" style="width: 100%">
           <el-option v-for="item in memoryOptions" :key="item" :label="item" :value="item">
@@ -141,12 +160,22 @@
         </el-option>
       </el-select>
       </el-form-item>
+
+      <!-- <el-form-item label="所属用户">
+        <el-select v-model="editForm.username" placeholder="请选择" style="width: 100%">
+          <el-option v-for="item in userInfos" :key="item.name" :value="item.name">
+            {{ item.name }}
+          </el-option>
+        </el-select>
+      </el-form-item> -->
+
     </el-form>
     <div slot="footer" class="dialog-footer">
       <el-button @click="dialogUpdateFormVisible = false">取 消</el-button>
       <el-button type="primary" @click="update(editForm.id)">修改</el-button>
     </div>
   </el-dialog>
+
 
   <el-dialog title="GPU信息" :visible.sync="dialogGpuVisible" width="30%" >
     <el-form label-width="80px" size="small">
@@ -161,6 +190,21 @@
     <div slot="footer" class="dialog-footer">
       <el-button @click="dialogGpuVisible = false">取 消</el-button>
       <el-button type="primary" @click="gpuUpdate()">绑定</el-button>
+    </div>
+  </el-dialog>
+
+  <el-dialog title="重置Windows账户密码" :visible.sync="dialogPwdVisible" width="30%" >
+    <el-form label-width="80px" size="small">
+      <el-form-item label="云桌面">
+        <el-input v-model="pwdForm.deviceName" disabled></el-input>
+      </el-form-item>
+      <el-form-item label="新密码">
+        <el-input v-model="pwdForm.newPassword" show-password placeholder="请输入新密码"></el-input>
+      </el-form-item>
+    </el-form>
+    <div slot="footer" class="dialog-footer">
+      <el-button @click="dialogPwdVisible = false">取 消</el-button>
+      <el-button type="primary" @click="submitResetPwd()">确 定</el-button>
     </div>
   </el-dialog>
 
@@ -182,6 +226,7 @@ export default {
       virtualIp: '',
       status: '',
       createdTime: '',
+      nameError: '',
       gpuForm: {
         gpuId: '',
         deviceName: ''
@@ -225,7 +270,13 @@ export default {
       timer: null,
       templates: [],
       gpus: [],
-      switchs: []
+      switchs: [],
+      pwdForm: {
+        deviceId: '',
+        deviceName: '',
+        newPassword: ''
+      },
+      dialogPwdVisible: false
     }
   },
   created() {
@@ -244,8 +295,37 @@ export default {
         this.total = res.data.data.totalNum
       })
     },
+    validateVMName() {
+      const name = this.addForm.name;
+      if (!name) {
+        this.nameError = '';
+        return false;
+      }
+      
+      // 检查长度
+      if (name.length > 64) {
+        this.nameError = '云桌面名称长度不能超过64个字符';
+        return false;
+      }
+      
+      // 检查格式：只能包含字母、数字和下划线，不能以下划线开头
+      const namePattern = /^[a-zA-Z0-9][a-zA-Z0-9_]{0,63}$/;
+      if (!namePattern.test(name)) {
+        this.nameError = '云桌面名称只能包含字母、数字和下划线，不能以下划线开头，最大长度64个字符';
+        return false;
+      }
+      
+      this.nameError = '';
+      return true;
+    },
     save() {
       console.log(this.addForm)
+      
+      // 验证云桌面名称
+      if (!this.validateVMName()) {
+        return;
+      }
+      
       this.request.post("/api/cloud/v1/vm", this.addForm).then(res => {
         if (res.status===200) {
           if (res.data.msg == "Device.Exist") {
@@ -254,6 +334,8 @@ export default {
             this.$message.error("参数异常，请检查参数后再重试！")
           } else if (res.data.msg == "Device.TemplateNotExist") {
             this.$message.error("模板文件不存在，请检查后再重试!")
+          } else if (res.data.msg == "Device.InvalidName") {
+            this.$message.error("云桌面名称只能包含字母、数字和下划线，不能以下划线开头，最大长度64个字符")
           } else {
             this.$message.success("云桌面创建中...")
           }
@@ -316,6 +398,7 @@ export default {
       })
       this.dialogFormVisible = true
       this.addForm = {}
+      this.nameError = ''
     },
 
     handleEdit(row) {
@@ -380,7 +463,18 @@ export default {
         }
       })
     },
+    // handleFileChange(field, file) {
+    //   console.log(field)
+    //   console.log(file)
+    // },
+    // handleSuccess(file) {
+    //   this.addForm.srcVmPath = file.raw.name
+    //   console.log(file)
+    //   console.log(URL.createObjectURL(file.raw))
+    //   console.log(document.getElementsByClassName("el-upload__input")[0].value)
+    // },
     handleVMConfig(row) {
+      // console.log(row)
       this.configForm = row
       this.dialogConfigFormVisible = true
     },
@@ -476,6 +570,42 @@ export default {
       console.log(pageNum)
       this.pageNum = pageNum
       this.load()
+    },
+    resetUserPwd(row) {
+      this.pwdForm.deviceId = row.id;
+      this.pwdForm.deviceName = row.name;
+      this.dialogPwdVisible = true;
+    },
+    
+    submitResetPwd() {
+      if (!this.pwdForm.newPassword) {
+        this.$message.error("请输入新密码");
+        return;
+      }
+      this.request.post("/api/cloud/v1/reset_user_pwd", this.pwdForm).then(res => {
+        if (res.status === 200) {
+          if (res.data.msg == "Common.InvalidParam") {
+            this.$message.error("参数异常，请检查参数后再重试！")
+          } else if (res.data.msg == "Device.ResetUserPwdFailed") {
+            this.$message.error("重置Windows账户密码失败，请检查后再重试!")
+          } else if (res.data.msg == "Device.MustBeRunning") {
+            this.$message.error("云桌面必须是运行状态才能重置密码!")
+          } else if (res.data.msg == "Device.TemplateNotExist") {
+            this.$message.error("模板文件不存在，请检查后再重试!")
+          } else {
+            this.$message.success("密码重置成功")
+            this.dialogPwdVisible = false
+            this.pwdForm = {
+              deviceId: '',
+              deviceName: '',
+              newPassword: ''
+            }
+          }
+          this.load()
+        } else {
+          this.$message.error("重置失败")
+        }
+      })
     }
 
   }
@@ -490,16 +620,21 @@ export default {
 .button-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: center; /* 将按钮容器内元素垂直对齐方式设置为顶部对齐 */
 }
 
 .button-container > * {
-  margin-bottom: 5px;
+  margin-bottom: 5px; /* 调整按钮之间的垂直间距 */
 }
 
 .button-container .el-button {
-  width: 100px;
-  height: 30px;
+  width: 100px; /* 设置按钮宽度 */
+  height: 30px; /* 设置按钮高度 */
+}
+
+.reset-pwd-btn {
+  width: 100px; /* Adjust the width as needed */
+  text-align: center; /* Center the text */
 }
 
 </style>

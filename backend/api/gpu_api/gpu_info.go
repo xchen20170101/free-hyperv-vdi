@@ -62,7 +62,7 @@ func (GpusApi) AllocationGpu(c *gin.Context) {
 	}
 	strVm := c.PostForm("strVm")
 	vms := strings.Split(strVm, ",")
-	
+
 	if len(vms) > 4 {
 		res.FailWithMsg("Gpu.IsLimited", c)
 		return
@@ -70,18 +70,18 @@ func (GpusApi) AllocationGpu(c *gin.Context) {
 
 	target := utils.GetInstancePathFromDB(gpu.Desc)
 	global.Logger.Println("target:", target)
-	
+
 	global.DB.Where("gpu_info = ?", gpuId).Find(&oldDevices)
 	for _, oldValue := range oldDevices {
 		go utils.RemoveGpuAdpater(oldValue.Name, target)
 	}
 
 	global.DB.Model(&models.Device{}).Where("gpu_info = ?", gpuId).Update("gpu_info", "")
-	
+
 	global.DB.Where("name in ?", vms).Find(&devices)
-	
+
 	for _, value := range devices {
-		
+
 		if value.GpuInfo == gpu.ID {
 			continue
 		}
@@ -120,7 +120,7 @@ func (GpusApi) BindGpu(c *gin.Context) {
 		return
 	}
 	global.DB.Where("gpu_info = ?", gpu.Name).Find(&devices)
-	
+
 	if len(devices) >= 8 {
 		res.FailWithMsg("Gpu.IsLimited", c)
 		return

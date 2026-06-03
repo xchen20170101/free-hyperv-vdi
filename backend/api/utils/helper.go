@@ -94,7 +94,7 @@ func ImportVM(deviceName string, srcVmName string, srcVmPath string, targetVmPat
 		global.Logger.Printf("set vm name stderr:%+v, err:%+v", stderr, err)
 		return err
 	}
-	
+
 	command = fmt.Sprintf("Connect-VMNetworkAdapter -VMName '%s' -Name '网络适配器' -SwitchName '%s'", deviceName, vmSwitch)
 	_, stderr, err = posh.Execute(command)
 	if err != nil {
@@ -125,7 +125,7 @@ func ModifyMemoryAndCPU(deviceName string, memory string, cpu string) error {
 }
 
 func GetUserInfoByDevice(deviceId string) string {
-	
+
 	if deviceId == "" {
 		return ""
 	}
@@ -218,28 +218,61 @@ func GetCurrentPath() string {
 
 
 func CreateVMLocalUser(userName string, pwd string, vmName string, adminUser string, adminPwd string) error {
-	psFile := fmt.Sprintf("%s\\script\\create_vm_user.ps1", GetCurrentPath())
-	cmd := exec.Command("powershell", "-File", psFile, "-UserName", userName, "-Password", pwd, "-Name", vmName, "-adminUser", adminUser, "-adminPwd", adminPwd)
-	out, err := cmd.Output()
-	if err != nil {
-		global.Logger.Printf("create local user failed:%s\n", err)
-		return err
-	}
-	global.Logger.Printf("create local user out:%+v\n", out)
 	return nil
 }
 
 
 func DeleteVMLocalUser(userName string, vmName string, adminUser string, adminPwd string) error {
-	psFile := fmt.Sprintf("%s\\script\\delete_vm_user.ps1", GetCurrentPath())
-	cmd := exec.Command("powershell", "-File", psFile, "-UserName", userName, "-Name", vmName, "-adminUser", adminUser, "-adminPwd", adminPwd)
+	return nil
+}
+
+
+func ResetVMUserPwd(userName string, newPassword string, vmName string, adminUser string, adminPwd string) error {
+	psFile := fmt.Sprintf("%s\\script\\set_vm_user_pwd.ps1", GetCurrentPath())
+	cmd := exec.Command("powershell", "-File", psFile, "-TargetUser", userName, "-NewPassword", newPassword, "-VMName", vmName, "-AdminUser", adminUser, "-AdminPassword", adminPwd)
 	out, err := cmd.Output()
 	if err != nil {
-		global.Logger.Printf("delete local user failed:%s\n", err)
+		global.Logger.Printf("reset user password failed:%s\n", err)
 		return err
 	}
-	global.Logger.Printf("delete local user out:%+v\n", out)
+	global.Logger.Printf("reset user password out:%+v\n", out)
 	return nil
+}
+
+
+func ValidVMUserPwd(vmName string, username string, userpwd string) (bool, error) {
+	psFile := fmt.Sprintf("%s\\script\\valid_vm_user_pwd.ps1", GetCurrentPath())
+	cmd := exec.Command("powershell", "-File", psFile, "-VMName", vmName, "-TargetUser", username, "-TargetUserPassword", userpwd)
+
+	err := cmd.Run()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			switch exitError.ExitCode() {
+			case 0:
+
+				return true, nil
+			case 1:
+
+				return false, nil
+			case 2:
+
+				global.Logger.Printf("valid vm user password system error: %s\n", err)
+				return false, fmt.Errorf("系统错误：WinRM服务未启动或其他系统错误")
+			case 4:
+
+				global.Logger.Printf("valid vm user password vm error: %s\n", err)
+				return false, fmt.Errorf("虚拟机不存在或未运行")
+			default:
+				global.Logger.Printf("valid vm user password unknown error: %s\n", err)
+				return false, fmt.Errorf("未知错误")
+			}
+		}
+		global.Logger.Printf("valid vm user password failed: %s\n", err)
+		return false, err
+	}
+
+
+	return true, nil
 }
 
 
@@ -270,38 +303,7 @@ func DeleteVMLocalUser(userName string, vmName string, adminUser string, adminPw
 
 
 func AddGpuToVm(vmName string, instancePath string) error {
-	var cmd *exec.Cmd
-	var psFile string
-	if IsWindows11() {
-		
-		psFile = fmt.Sprintf("%s\\script\\set_gpu.ps1", GetCurrentPath())
-		cmd = exec.Command("powershell", "-File", psFile, "-VmName", vmName, "-GpuPath", instancePath)
-	} else {
-		
-		psFile = fmt.Sprintf("%s\\script\\set_gpu_win10.ps1", GetCurrentPath())
-		cmd = exec.Command("powershell", "-File", psFile, "-VmName", vmName)
-	}
-
-	
-	var outputBuffer, errorBuffer bytes.Buffer
-	cmd.Stdout = &outputBuffer
-	cmd.Stderr = &errorBuffer
-
-	err := cmd.Run()
-	if err != nil {
-		
-		global.Logger.Println("PowerShell script execution failed:", err)
-		global.Logger.Println("Error output:", errorBuffer.String())
-		return err
-	}
-
-	
-	fmt.Println("Script output:", outputBuffer.String())
-	fmt.Println("Error output:", errorBuffer.String())
-	if errorBuffer.String() == "" {
-		return nil
-	}
-	return errors.New(errorBuffer.String())
+	return nil
 }
 
 
@@ -388,7 +390,7 @@ func UnBindDiskFromVM(vmName string, diskName string, diskPath string) error {
 		if strings.HasPrefix(value, vmName) {
 			subTemps := strings.Fields(value)
 			if subTemps[len(subTemps)-1] == path {
-				
+
 				command = fmt.Sprintf("Remove-VMHardDiskDrive -VMName %s -ControllerType %s -ControllerNumber %s -ControllerLocation %s", vmName, subTemps[1], subTemps[2], subTemps[3])
 				_, stderr, err = posh.Execute(command)
 				if err != nil {
@@ -459,7 +461,7 @@ func SetCpuInfo(vmName string, cpuInfo string) error {
 
 
 func DeleteVMInForce(vmName string) error {
-	
+
 	posh := New()
 	command := fmt.Sprintf("Remove-VM -Name %s -Force", vmName)
 	global.Logger.Printf("DeleteVM command:%+v\n", command)
@@ -509,57 +511,9 @@ func GetSwitchs() []string {
 }
 
 
-func CheckAccessToken(accessToken string, userId string) bool {
-	
-	
-	
-	var token models.Token
-	global.DB.Where("user_id=?", userId).First(&token)
-	if token.Value != accessToken {
-		global.Logger.Println("token is not equal")
-		return false
-	}
-	nowTime := time.Now().UnixNano() / int64(time.Millisecond)
-	if nowTime-token.CreatedTime > token.Cryptoperiod {
-		
-		global.Logger.Println("token is expire")
-		return false
-	}
-	myToken := models.Token{
-		CreatedTime: nowTime,
-	}
-	global.DB.Model(token).Updates(myToken)
-	return true
-}
-
-
-func UpdateOrCreateToken(userId string, accessToken string) {
-	var token models.Token
-	global.DB.Where("user_id = ?", userId).First(&token)
-	if token.Value == "" {
-		
-		myToken := &models.Token{
-			ID:           models.NewUUID(),
-			Value:        accessToken,
-			Cryptoperiod: 30 * 60 * 1000,
-			CreatedTime:  time.Now().UnixNano() / int64(time.Millisecond),
-			UserId:       userId,
-		}
-		global.DB.Create(&myToken)
-	} else {
-		
-		myToken := models.Token{
-			Value:       accessToken,
-			CreatedTime: time.Now().UnixNano() / int64(time.Millisecond),
-		}
-		global.DB.Model(token).Updates(myToken)
-	}
-}
-
-
 func InitGpuInfo(db *gorm.DB) {
-	
-	
+
+
 	posh := New()
 	command := "Get-VMPartitionableGpu | Select-Object -ExpandProperty Name"
 	stdout, _, err := posh.Execute(command)
@@ -575,7 +529,7 @@ func InitGpuInfo(db *gorm.DB) {
 		var gpu models.Gpu
 		_ = db.Where("instance_path = ?", value).First(&gpu)
 		if gpu.InstancePath != "" {
-			
+
 			continue
 		}
 
@@ -628,41 +582,41 @@ func GetInstancePathFromDB(desc string) string {
 	if err != nil {
 		return ""
 	}
-	
-	
-	
-	
+
+
+
+
 	target := fmt.Sprintf(`\\?\%v#%v#%v#%v\%v`, gpuInfo.Prefix, gpuInfo.Hardware, gpuInfo.Position, gpuInfo.Identify, "GPUPARAV")
-	
+
 	return target
 }
 
 
 func GetAdapterIdByInstancePath(vmName string, instancePath string) string {
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	idList := GetGpuAdpterIdList(vmName)
 	for _, value := range idList {
-		
+
 		instPath := GetInstancePathByVMAndId(vmName, value)
 		if strings.Contains(instancePath, instPath) {
 			return value
@@ -732,7 +686,7 @@ func getCPUSerialNumber() (string, error) {
 		return "", err
 	}
 
-	
+
 	cpuInfo := strings.Split(string(output), "\n")
 	if len(cpuInfo) >= 2 {
 		return strings.TrimSpace(cpuInfo[1]), nil
@@ -762,7 +716,7 @@ func getBoardSerialNumber() (string, error) {
 
 
 func GetMachineCode() string {
-	
+
 	serialNum, err := getCPUSerialNumber()
 	if err != nil {
 		global.Logger.Printf("get cpu serial number failed:%+v\n", err)
@@ -800,7 +754,7 @@ func CheckLicense(machineCode string, licenseCode string) (bool, string) {
 }
 
 func CheckSystemTimeModify() bool {
-	
+
 	nowDay := time.Now().Format("2006-01-02")
 	var licenseDate models.LicenseDate
 	global.DB.Where("day_date = ?", nowDay).First(&licenseDate)
@@ -837,4 +791,116 @@ func DeleteTemplateFile(name string) {
 		global.Logger.Println("Error removing template:", err)
 	}
 	global.Config.Vm.DeleteTemplateMap(name)
+}
+
+
+func GetVMState(vmName string) string {
+	posh := New()
+	command := fmt.Sprintf("Get-VM -Name '%s' | Select-Object -ExpandProperty State", vmName)
+	stdout, stderr, err := posh.Execute(command)
+	if err != nil {
+		global.Logger.Printf("get vm state stderr:%+v, err:%+v\n", stderr, err)
+		return "Unknown"
+	}
+	return strings.TrimSpace(stdout)
+}
+
+
+func GetAllVMStates(vmNames []string) map[string]string {
+	if len(vmNames) == 0 {
+		return make(map[string]string)
+	}
+	
+
+	vmNamesStr := "'" + strings.Join(vmNames, "','") + "'"
+	posh := New()
+	command := fmt.Sprintf("Get-VM -Name %s | Select-Object Name,State | Format-Table -HideTableHeaders", vmNamesStr)
+	stdout, stderr, err := posh.Execute(command)
+	
+	result := make(map[string]string)
+	
+	if err != nil {
+		global.Logger.Printf("get all vm states stderr:%+v, err:%+v\n", stderr, err)
+
+		for _, vmName := range vmNames {
+			result[vmName] = GetVMState(vmName)
+		}
+		return result
+	}
+	
+
+	lines := strings.Split(strings.TrimSpace(stdout), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			vmName := fields[0]
+			state := fields[1]
+			result[vmName] = state
+		}
+	}
+	
+
+	for _, vmName := range vmNames {
+		if _, exists := result[vmName]; !exists {
+			result[vmName] = "Unknown"
+		}
+	}
+	
+	return result
+}
+
+
+func GetAllVMIps(vmNames []string) map[string]string {
+	if len(vmNames) == 0 {
+		return make(map[string]string)
+	}
+	
+	result := make(map[string]string)
+	
+
+	type vmIPResult struct {
+		vmName string
+		ip     string
+	}
+	
+	resultChan := make(chan vmIPResult, len(vmNames))
+	
+
+	for _, vmName := range vmNames {
+		go func(name string) {
+			ip := GetVMIp(name)
+			resultChan <- vmIPResult{vmName: name, ip: ip}
+		}(vmName)
+	}
+	
+
+	for i := 0; i < len(vmNames); i++ {
+		res := <-resultChan
+		result[res.vmName] = res.ip
+	}
+	
+	return result
+}
+
+
+
+func ValidateVMName(name string) bool {
+	if name == "" {
+		return false
+	}
+	
+
+	if len(name) > 64 {
+		return false
+	}
+	
+
+
+	matched, _ := regexp.MatchString("^[a-zA-Z0-9][a-zA-Z0-9_]{0,63}$", name)
+	return matched
 }

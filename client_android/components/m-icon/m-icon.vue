@@ -5,7 +5,9 @@
 <script>
 	export default {
 		props: {
-			
+			/**
+			 * 图标类型
+			 */
 			type: String
 		},
 		methods: {

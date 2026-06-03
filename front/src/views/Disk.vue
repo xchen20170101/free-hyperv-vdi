@@ -2,6 +2,8 @@
   <el-card>
   <div style="margin: 10px 0">
     <el-input style="width: 200px" placeholder="请输入名称" suffix-icon="el-icon-search" v-model="name"></el-input>
+<!--    <el-input style="width: 200px" placeholder="请输入邮箱" suffix-icon="el-icon-message" class="ml-5" v-model="email"></el-input>-->
+<!--    <el-input style="width: 200px" placeholder="请输入地址" suffix-icon="el-icon-position" class="ml-5" v-model="address"></el-input>-->
     <el-button class="ml-5" type="primary" @click="load">搜索</el-button>
     <el-button type="warning" @click="reset">重置</el-button>
   </div>
@@ -11,6 +13,7 @@
   </div>
 
   <el-table :data="tableData"  :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+    <!-- <el-table-column prop="id" label="ID"></el-table-column> -->
     <el-table-column prop="name" label="磁盘名" ></el-table-column>
     <el-table-column prop="capacity" label="总容量" ></el-table-column>
     <el-table-column prop="storagePath" label="存储路径" ></el-table-column>
@@ -18,6 +21,7 @@
     <el-table-column prop="createdTime" label="创建时间" ></el-table-column>
     <el-table-column label="操作"  align="center">
       <template slot-scope="scope">
+        <!-- <el-button round type="success" @click="handleEdit(scope.row)" title="编辑"><i class="el-icon-edit"></i></el-button> -->
         <el-button round type="success" @click="handleBind(scope.row)">绑定</el-button>
         <el-button round type="success" @click="handleUnBind(scope.row.id)">解绑</el-button>
         <el-popconfirm
@@ -34,6 +38,7 @@
       </template>
     </el-table-column>
   </el-table>
+  <!--        分页组件-->
   <div style="padding: 10px 0">
     <el-pagination
         @size-change="handleSizeChange"
@@ -78,6 +83,10 @@
         </el-row>
         
       </el-form-item>
+      <!-- <el-form-item label="存储路径">
+        <el-input v-model="form.storagePath" autocomplete="off"></el-input>
+      </el-form-item> -->
+
     </el-form>
     <div slot="footer" class="dialog-footer">
       <el-button @click="dialogFormVisible = false">取 消</el-button>
@@ -109,6 +118,7 @@ export default {
       form: {
         name:'',
         capacity:''
+        //storagePath:''
       },
       dialogFormVisible: false,
       dialogUpdateFormVisible: false,
@@ -178,6 +188,7 @@ export default {
     },
 
     bind() {
+      //console.log(this.bindForm)
       this.request.post("/api/cloud/v1/disk/device_bind", this.bindForm).then(res => {
         if (res.status===200) {
           if (res.data.msg == "Disk.DeviceIsRunning") {
@@ -253,7 +264,7 @@ export default {
     },
 
     delBatch() {
-      let ids = this.multipleSelection.map(v => v.id)
+      let ids = this.multipleSelection.map(v => v.id)  // [{}, {}, {}] => [1,2,3]
       this.request.post("/role/del/batch", ids).then(res => {
         if (res.code==='200') {
           this.$message.success("批量删除成功")

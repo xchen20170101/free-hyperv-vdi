@@ -10,7 +10,8 @@
     <el-button type="primary" @click="handleAdd">新增 <i class="el-icon-circle-plus-outline"></i></el-button>
   </div>
 
-  <el-table :data="tableData" :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+  <el-table :data="tableData"  :header-cell-class-name="headerBg" @selection-change="handleSelectionChange">
+    <!-- <el-table-column prop="id" label="ID"></el-table-column> -->
     <el-table-column prop="name" label="用户名" ></el-table-column>
     <el-table-column prop="password" label="密码" ></el-table-column>
     <el-table-column prop="role" label="角色" ></el-table-column>
@@ -34,6 +35,7 @@
       </template>
     </el-table-column>
   </el-table>
+  <!--        分页组件-->
   <div style="padding: 10px 0">
     <el-pagination
         @size-change="handleSizeChange"
@@ -95,6 +97,7 @@
         <el-input v-model="form.password" type="password" autocomplete="off" @input="validatePassword"></el-input>
       </el-form-item>
       <el-form-item label="角色">
+        <!-- <el-input v-model="form.role" autocomplete="off"></el-input> -->
         <el-select v-model="form.role" placeholder="请选择" style="width: 100%">
           <el-option value="管理员">管理员</el-option>
           <el-option value="云桌面用户">云桌面用户</el-option>
@@ -189,8 +192,10 @@ export default {
       })
     },
     validatePassword(event) {
+      // 正则表达式匹配字母和数字
       const regex = /^[a-zA-Z0-9]*$/;
       if (!regex.test(event)) {
+        // 如果输入包含非字母和数字的字符，则清除该输入
         this.form.password = this.form.password.replace(/[^a-zA-Z0-9]/g, '');
       }
     },

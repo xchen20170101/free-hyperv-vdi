@@ -44,7 +44,10 @@
         },
         methods: {
             initPosition() {
-                
+                /**
+                 * 使用 absolute 定位，并且设置 bottom 值进行定位。软键盘弹出时，底部会因为窗口变化而被顶上来。
+                 * 反向使用 top 进行定位，可以避免此问题。
+                 */
                 this.positionTop = uni.getSystemInfoSync().windowHeight - 100;
             },
             bindSetServer() {
@@ -58,14 +61,14 @@
                     uni.navigateBack()
                     return
                 }
-                
-                var targetUrl = 'http:
-                
+                //console.log("serverIp:", serverIp)
+                var targetUrl = 'http://' + serverIp + ':8090/api/cloud/v1/reset_password'
+                //console.log("targetUrl:", targetUrl)
                 uni.request({
                     url: targetUrl,
                     method: 'POST',
                     header: {
-                        'content-type': 'application/x-www-form-urlencoded' 
+                        'content-type': 'application/x-www-form-urlencoded' // 设置请求头为表单形式
                     },
                     data: {
                         username: this.userName,
@@ -99,11 +102,11 @@
                                 })
                             }
                         }
-                        
+                        // 在这里处理获取到的数据
                     },
                     fail: function(err) {
                         console.error('POST 请求失败', err);
-                        
+                        // 处理请求失败的情况
                         uni.showToast({
                             title: '网络连接错误！',
                             icon: 'none',
@@ -115,9 +118,9 @@
             },
             bindCancelServer() {
                 console.log("cancel server")
-                
-                
-                
+                // uni.redirectTo({
+                //     url: "/pages/login/login"
+                // })
                 uni.navigateBack()
             },
             onReady() {
@@ -209,22 +212,22 @@
     .btn-row {
         display: flex;
         justify-content: space-between;
-        
-        
+        /* Adjust this according to your layout needs */
+        /* Other styles as needed */
     }
 
-    
+    /* Additional styles for buttons (modify as needed) */
     .btn-row button {
-        
+        /* Add specific button styles here */
         margin: 5px;
-        
+        /* Adjust spacing between buttons */
     }
 
     .larger-btn {
         padding: 5px 40px;
-        
+        /* Adjust padding to increase button size */
         font-size: 16px;
-        
-        
+        /* Adjust font size */
+        /* Other styles for larger buttons */
     }
 </style>

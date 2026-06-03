@@ -32,41 +32,44 @@
         },
         methods: {
             initPosition() {
-                
+                /**
+                 * 使用 absolute 定位，并且设置 bottom 值进行定位。软键盘弹出时，底部会因为窗口变化而被顶上来。
+                 * 反向使用 top 进行定位，可以避免此问题。
+                 */
                 this.positionTop = uni.getSystemInfoSync().windowHeight - 100;
             },
             bindSetServer() {
-                
-                
-                
-                
-                
-                
+                // uni.showToast({
+                //     title: '操作成功',
+                //     icon: 'success',
+                //     duration: 1000 // 提示的持续时间，单位是毫秒（ms）
+                // });
+                // 写入配置文件
                 uni.setStorageSync('serverIp', this.serverIp)
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
+                // uni.getFileSystemManager().write({
+                //     filePath: 'conf.json',
+                //     data: JSON.stringify({
+                //         serverIp: this.serverIp
+                //     }),
+                //     encoding: 'utf-8',
+                //     success: () => {
+                //         uni.navigateBack()
+                //     },
+                //     fail: (error) => {
+                //         console.error("写入配置文件失败", error)
+                //     }
+                // })
 
-                
-                
-                
+                // uni.redirectTo({
+                //     url: "/pages/login/login?serverIp=127.0.0.1"
+                // })
                 uni.navigateBack()
             },
             bindCancelServer() {
                 console.log("cancel server")
-                
-                
-                
+                // uni.redirectTo({
+                //     url: "/pages/login/login"
+                // })
                 uni.navigateBack()
             },
             onReady() {
@@ -158,22 +161,22 @@
     .btn-row {
         display: flex;
         justify-content: space-between;
-        
-        
+        /* Adjust this according to your layout needs */
+        /* Other styles as needed */
     }
 
-    
+    /* Additional styles for buttons (modify as needed) */
     .btn-row button {
-        
+        /* Add specific button styles here */
         margin: 5px;
-        
+        /* Adjust spacing between buttons */
     }
 
     .larger-btn {
         padding: 5px 40px;
-        
+        /* Adjust padding to increase button size */
         font-size: 16px;
-        
-        
+        /* Adjust font size */
+        /* Other styles for larger buttons */
     }
 </style>
